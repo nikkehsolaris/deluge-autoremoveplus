@@ -52,16 +52,16 @@ import time
 DEFAULT_PREFS = {
     'max_seeds': 0,
     'filter': 'func_ratio',
+    'filter2': 'func_added',
     'count_exempt': False,
     'remove_data': False,
     'trackers': [],
     'labels': [],
     'min': 0.0,
-    'interval': 0.5,
-    'sel_func': 'and',
-    'filter2': 'func_added',
     'min2': 0.0,
     'hdd_space': -1.0,
+    'interval': 0.5,  # hours
+    'sel_func': 'and',
     'remove': True,
     'enabled': False,
     'tracker_rules': {},
@@ -82,9 +82,9 @@ def _date_added((i, t)):
 # Add key label also to get_remove_rules():141
 filter_funcs = {
     'func_ratio': _get_ratio,
-    'func_added': lambda (i, t): (time.time() - t.time_added) / 86400.0,
+    'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 2),
     'func_seed_time': lambda (i, t):
-        t.get_status(['seeding_time'])['seeding_time'] / 86400.0,
+        round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 2),
     'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
 }
 
@@ -129,7 +129,7 @@ class Core(CorePluginBase):
 
     def start_looping(self):
         log.warning('check interval loop starting')
-        self.looping_call.start(self.config['interval'] * 86400.0)
+        self.looping_call.start(self.config['interval'] * 3600.0)
 
     @export
     def set_config(self, config):
@@ -139,7 +139,7 @@ class Core(CorePluginBase):
         self.config.save()
         if self.looping_call.running:
             self.looping_call.stop()
-        self.looping_call.start(self.config['interval'] * 86400.0)
+        self.looping_call.start(self.config['interval'] * 3600.0)
 
     @export
     def get_config(self):
@@ -150,8 +150,8 @@ class Core(CorePluginBase):
     def get_remove_rules(self):
         return {
             'func_ratio': 'Ratio',
-            'func_added': 'Date Added',
-            'func_seed_time': 'Seed Time',
+            'func_added': 'Age in days',
+            'func_seed_time': 'Seed Time (h)',
             'func_seeders': 'Seeders'
         }
 
@@ -229,8 +229,8 @@ class Core(CorePluginBase):
             try:
                 # get label string
                 label_str = component.get(
-                    "CorePlugin.Label"
-                )._status_get_label(id)
+                    "CorePlugin.LabelPlus"
+                ).get_torrent_label_name(id)
 
                 # if torrent has labels check them
                 labels = [label_str] if len(label_str) > 0 else []
@@ -263,13 +263,13 @@ class Core(CorePluginBase):
 
         labels_enabled = False
 
-        if 'Label' in component.get(
+        if 'LabelPlus' in component.get(
             "CorePluginManager"
         ).get_enabled_plugins():
             labels_enabled = True
             label_rules = self.config['label_rules']
         else:
-            log.debug("WARNING! Label plugin not active")
+            log.debug("WARNING! LabelPlus plugin not active")
             log.debug("No labels will be checked for exemptions!")
             label_rules = []
 
@@ -323,8 +323,8 @@ class Core(CorePluginBase):
                 try:
                     # get label string
                     label_str = component.get(
-                        "CorePlugin.Label"
-                    )._status_get_label(i)
+                        "CorePlugin.LabelPlus"
+                    ).get_torrent_label_name(i)
 
                     # if torrent has labels check them
                     labels = [label_str] if len(label_str) > 0 else []
