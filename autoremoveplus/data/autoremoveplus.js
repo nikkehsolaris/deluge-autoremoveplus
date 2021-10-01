@@ -66,28 +66,14 @@ Deluge.plugins.autoremoveplus.util.arrayEquals = function(a, b) {
 
       // recurse into the nested arrays
       if (a[i] instanceof Array && b[i] instanceof Array) {
-
-        if (!Deluge.plugins.autoremoveplus.util.arrayEquals(a[i], b[i]))
-          return false;
-
+        return Deluge.plugins.autoremoveplus.util.arrayEquals(a[i], b[i]);
+      } else if(Deluge.plugins.autoremoveplus.util.isNumber(a[i])
+        && Deluge.plugins.autoremoveplus.util.isNumber(b[i])) {
+          return a[i].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION)
+            === b[i].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION);
       } else {
-
-        if(Deluge.plugins.autoremoveplus.util.isNumber(a[i])
-          && Deluge.plugins.autoremoveplus.util.isNumber(b[i])) {
-
-          if (a[i].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION)
-            !== b[i].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION))
-            return  false;
-
-        } else {
-
-          if (a[i] !== b[i])
-            return false;
-
-        }
-
+          return a[i] === b[i];
       }
-
     }
 
     return true;
@@ -107,36 +93,18 @@ Deluge.plugins.autoremoveplus.util.dictEquals = function(a, b) {
     var key = keysA[i];
 
     if (key in b) {
-
       if (a[key] instanceof Array && b[key] instanceof Array) {
-
-        if (!Deluge.plugins.autoremoveplus.util.arrayEquals(a[key], b[key]))
-          return false;
-
+        return Deluge.plugins.autoremoveplus.util.arrayEquals(a[key], b[key]);
+      } else if (Deluge.plugins.autoremoveplus.util.isNumber(a[key])
+              && Deluge.plugins.autoremoveplus.util.isNumber(b[key])) {
+          return a[key].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION)
+                === b[key].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION);
       } else {
-
-        if(Deluge.plugins.autoremoveplus.util.isNumber(a[key])
-          && Deluge.plugins.autoremoveplus.util.isNumber(b[key])) {
-
-          if (a[key].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION)
-            !== b[key].toFixed(Deluge.plugins.autoremoveplus.CHECK_PRECISION))
-            return false;
-
-        } else  {
-
-          if (a[key] !== b[key])
-            return false;
-
-        }
-
+          return a[key] === b[key];
       }
-
     } else {
-
       return false;
-
     }
-
   }
 
   return true;
@@ -206,7 +174,8 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             items: [{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Check every: ')
+                text: _('Check interval (hours): '),
+                flex: 0.4
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
@@ -215,9 +184,9 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                 fieldLabel: _('Check every'),
                 value: 1.0,
                 maxValue: 1000.0,
-                minValue: 0.0001,
+                minValue: 0.01,
                 allowDecimals: true,
-                decimalPrecision: 4,
+                decimalPrecision: 2,
                 incrementValue: 0.1,
                 alternateIncrementValue: 0.5,
                 flex: 0.2
@@ -231,7 +200,8 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             items: [{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Max. Torrents: ')
+                text: _('Max.torrents: '),
+                flex: 0.4
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
@@ -241,7 +211,7 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                 value: 0,
                 maxValue: 9999,
                 minValue: 0,
-                flex: 0.45
+                flex: 0.2
             }]
         });
 
@@ -252,11 +222,12 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             items: [{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Min. HDD Space: ')
+                text: _('Minimum drive space (GB, -1 for infinite): '),
+                flex: 0.4
             },{
                 xtype: 'spinnerfield',
                 name: 'minHDDSpace',
-                fieldLabel: _('Min. HDD Space'),
+                fieldLabel: _('Min. drive space'),
                 value: -1.0,
                 maxValue: 10000.0,
                 minValue: -1.0,
@@ -264,11 +235,7 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                 decimalPrecision: 3,
                 incrementValue: 0.5,
                 alternateIncrementValue: 1.0,
-                flex: 0.45
-            }, {
-                xtype: 'label',
-                margins: '5 0 0 5',
-                text: _('GB (-1 for infinite)')
+                flex: 0.2
             }]
         });
 
@@ -329,13 +296,13 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             },{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Min: ')
+                text: _('Under: ')
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
                 //margins: '0 0 0 0',
                 name: 'min',
-                fieldLabel: _('Min'),
+                fieldLabel: _('Under'),
                 value: 0.0,
                 maxValue: 10000.0,
                 minValue: 0.0,
@@ -373,7 +340,8 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                 mode: 'local',
                 store: [
                     'and',
-                    'or'
+                    'or',
+                    'xor'
                 ],
                 //valueField: 'func_id',
                 //displayField: 'func_name',
@@ -407,13 +375,13 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             },{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Min: ')
+                text: _('Under: ')
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
                 //margins: '0 0 0 0',
                 name: 'min2',
-                fieldLabel: _('Min'),
+                fieldLabel: _('Under'),
                 value: 0.0,
                 maxValue: 10000.0,
                 minValue: 0.0,
@@ -425,13 +393,13 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             }]
         });
 
-        this.labelExTrackers = this.genSettingsBox.add({
+        this.labelExTrackers = this.specSettingsBox.add({
           xtype: 'label',
           margins: '5 0 0 5',
           text: _('Exemption Rules:')
         });
 
-        this.tblTrackers = this.genSettingsBox.add({
+        this.tblTrackers = this.specSettingsBox.add({
             xtype: 'editorgrid',
             margins: '2 0 0 5',
             flex: 1,
@@ -504,7 +472,7 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
 
         });
 
-        this.trackerButtonsContainer = this.genSettingsBox.add({
+        this.trackerButtonsContainer = this.specSettingsBox.add({
             xtype: 'container',
             layout: 'hbox',
             margins: '4 0 0 5',
@@ -518,7 +486,7 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             }]
         });
 
-        this.chkExemptCount = this.genSettingsBox.add({
+        this.chkExemptCount = this.specSettingsBox.add({
           xtype: 'checkbox',
           margins: '5 0 0 5',
           boxLabel: _('Exempted torrents count toward maximum')

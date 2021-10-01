@@ -23,9 +23,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with deluge.    If not, write to:
-# 	The Free Software Foundation, Inc.,
-# 	51 Franklin Street, Fifth Floor
-# 	Boston, MA  02110-1301, USA.
+#   The Free Software Foundation, Inc.,
+#   51 Franklin Street, Fifth Floor
+#   Boston, MA  02110-1301, USA.
 #
 #    In addition, as a special exception, the copyright holders give
 #    permission to link the code of portions of this program with the OpenSSL
@@ -74,6 +74,14 @@ DEFAULT_PREFS = {
 def _get_ratio((i, t)):
     return t.get_ratio()
 
+def _age_in_days((i, t)):
+    now = time.time()
+    added = t.get_status(['time_added'])['time_added']
+    log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
+    age_in_days = round((now - added) / 86400.0, 2)  # age in days
+    log.debug("_age_in_days(): Returning age: {} (in days)".format(age_in_days))
+    return age_in_days
+
 
 def _date_added((i, t)):
     return (time.time() - t.time_added) / 86400.0
@@ -82,7 +90,8 @@ def _date_added((i, t)):
 # Add key label also to get_remove_rules():141
 filter_funcs = {
     'func_ratio': _get_ratio,
-    'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 2),
+    #'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 2),
+    'func_added': _age_in_days,
     'func_seed_time': lambda (i, t):
         round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 2),
     'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
@@ -90,7 +99,8 @@ filter_funcs = {
 
 sel_funcs = {
     'and': lambda (a, b): a and b,
-    'or': lambda (a, b): a or b
+    'or': lambda (a, b): a or b,
+    'xor': lambda (a ,b): (a and not b) or (not a and b)
 }
 
 
@@ -113,12 +123,13 @@ class Core(CorePluginBase):
         self.torrent_states.save()
 
         # it appears that if the plugin is enabled on boot then it is called
-        # before the torrents are properly loaded and so do_remove receives an
+        # before the torrents are properly loaded and so periodic_scan() receives an
         # empty list. So we must listen to SessionStarted for when deluge boots
         #  but we still have apply_now so that if the plugin is enabled
-        # mid-program do_remove is still run
-        self.looping_call = LoopingCall(self.do_remove)
+        # mid-program periodic_scan() is still run
+        self.looping_call = LoopingCall(self.periodic_scan)
         deferLater(reactor, 5, self.start_looping)
+        self.torrentmanager = component.get("TorrentManager")
 
     def disable(self):
         if self.looping_call.running:
@@ -201,12 +212,13 @@ class Core(CorePluginBase):
                 "AutoRemovePlus: Problems pausing torrent: %s", e
             )
 
-    def remove_torrent(self, torrentmanager, tid, remove_data):
+    def remove_torrent(self, tid, remove_data):
         try:
-            torrentmanager.remove(tid, remove_data=remove_data)
+            self.torrentmanager.remove(tid, remove_data=remove_data)
+            log.debug("remove_torrent(): successfully removed torrent: %s", tid)
         except Exception, e:
             log.warn(
-                "AutoRemovePlus: Problems removing torrent: %s", e
+                "remove_torrent(): AutoRemovePlus: Problems removing torrent: %s", e
             )
         try:
             del self.torrent_states.config[tid]
@@ -219,11 +231,16 @@ class Core(CorePluginBase):
 
         total_rules = []
 
-        for t in torrent.trackers:
-            for name, rules in tracker_rules.iteritems():
-                if(t['url'].find(name.lower()) != -1):
-                    for rule in rules:
-                        total_rules.append(rule)
+        try:
+            for t in torrent.trackers:
+                for name, rules in tracker_rules.iteritems():
+                    log.debug("get_torrent_rules(): processing name = {}, rules = {}, url = {}, find = {} ".format(name, rules, t['url'], t['url'].find(name.lower())))
+                    if(t['url'].find(name.lower()) != -1):
+                        for rule in rules:
+                            total_rules.append(rule)
+        except Exception as e:
+            log.warning("get_torrent_rules(): Exception with getting torrent rules for {}: {}".format(id, e))
+            return total_rules
 
         if label_rules:
             try:
@@ -239,28 +256,28 @@ class Core(CorePluginBase):
                     if label in label_rules:
                         for rule in label_rules[label]:
                             total_rules.append(rule)
-            except:
-                log.debug("Cannot obtain torrent label")
+            except Exception as e:
+                log.warning("get_torrent_rules(): Cannot obtain torrent label for {}: {}".format(id, e))
 
+        log.debug("get_torrent_rules(): returning rules for {}: {}".format(id, total_rules))
         return total_rules
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
-    def do_remove(self, *args, **kwargs):
-        log.debug("AutoRemovePlus: do_remove")
+    def periodic_scan(self, *args, **kwargs):
+        log.debug("AutoRemovePlus: starting periodic_scan()")
 
-        max_seeds = self.config['max_seeds']
+        max_seeds = int(self.config['max_seeds'])
         count_exempt = self.config['count_exempt']
         remove_data = self.config['remove_data']
         exemp_trackers = self.config['trackers']
         exemp_labels = self.config['labels']
-        min_val = self.config['min']
-        min_val2 = self.config['min2']
+        min_val = float(self.config['min'])
+        min_val2 = float(self.config['min2'])
         remove = self.config['remove']
         enabled = self.config['enabled']
         tracker_rules = self.config['tracker_rules']
         rule_1_chk = self.config['rule_1_enabled']
         rule_2_chk = self.config['rule_2_enabled']
-
         labels_enabled = False
 
         if 'LabelPlus' in component.get(
@@ -277,8 +294,7 @@ class Core(CorePluginBase):
         if max_seeds < 0:
             return
 
-        torrentmanager = component.get("TorrentManager")
-        torrent_ids = torrentmanager.get_torrent_list()
+        torrent_ids = self.torrentmanager.get_torrent_list()
 
         log.debug("Number of torrents: {0}".format(len(torrent_ids)))
 
@@ -292,11 +308,14 @@ class Core(CorePluginBase):
 
         # relevant torrents to us exist and are finished
         for i in torrent_ids:
-            t = torrentmanager.torrents.get(i, None)
+            t = self.torrentmanager.torrents.get(i, None)
 
+            # TODO: deluge2.0 version of this script doesn't have this try-ex-else block:
+            # likely because the end of this function is way more convoluted/feature-packed than in this ver?
             try:
                 finished = t.is_finished
-            except:
+            except Exception as e:
+                log.warning("periodic_scan(): Cannot obtain torrent 'is_finished' attribute: [{}]".format(e))
                 continue
             else:
                 if not finished:
@@ -304,7 +323,7 @@ class Core(CorePluginBase):
 
             try:
                 ignored = self.torrent_states[i]
-            except KeyError:
+            except KeyError as e:
                 ignored = False
 
             ex_torrent = False
@@ -315,7 +334,7 @@ class Core(CorePluginBase):
                 (t, ex_t) for t in trackers for ex_t in exemp_trackers
             ):
                 if(tracker['url'].find(ex_tracker.lower()) != -1):
-                    log.debug("Found exempted tracker: %s" % (ex_tracker))
+                    log.debug("periodic_scan(): Found exempted tracker: %s" % (ex_tracker))
                     ex_torrent = True
 
             # check if labels in exempted label list if Label plugin is enabled
@@ -333,20 +352,18 @@ class Core(CorePluginBase):
                         (l, ex_l) for l in labels for ex_l in exemp_labels
                     ):
                         if(label.find(ex_label.lower()) != -1):
-                            log.debug("Found exempted label: %s" % (ex_label))
+                            log.debug("periodic_scan(): Found exempted label: %s" % (ex_label))
                             ex_torrent = True
-                except:
-                    log.debug("Cannot obtain torrent label")
+                except Exception as e:
+                    log.warning("periodic_scan(): Cannot obtain torrent label. [{}]".format(e))
 
             # if torrent tracker or label in exemption list, or torrent ignored
             # insert in the ignored torrents list
             (ignored_torrents if ignored or ex_torrent else torrents)\
                 .append((i, t))
 
-        log.debug("Number of finished torrents: {0}".format(len(torrents)))
-        log.debug("Number of ignored torrents: {0}".format(
-            len(ignored_torrents))
-        )
+        log.debug("periodic_scan(): Number of finished torrents: {0}".format(len(torrents)))
+        log.debug("periodic_scan(): Number of ignored torrents: {0}".format(len(ignored_torrents)))
 
         # now that we have trimmed active torrents
         # check again to make sure we still need to proceed
@@ -386,7 +403,7 @@ class Core(CorePluginBase):
                 break  # break the loop, we have enough space
 
             log.debug(
-                "AutoRemovePlus: Remove torrent %s, %s"
+                "periodic_scan(): AutoRemovePlus: Remove torrent %s, %s"
                 % (i, t.get_status(['name'])['name'])
             )
             log.debug(
@@ -397,14 +414,9 @@ class Core(CorePluginBase):
             )
             if enabled:
                 # Get result of first condition test
-                filter_1 = filter_funcs.get(
-                    self.config['filter'],
-                    _get_ratio
-                )((i, t)) >= min_val
+                filter_1 = filter_funcs.get(self.config['filter'], _get_ratio)((i, t)) >= min_val
                 # Get result of second condition test
-                filter_2 = filter_funcs.get(
-                    self.config['filter2'], _get_ratio
-                )((i, t)) >= min_val2
+                filter_2 = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t)) >= min_val2
 
                 specific_rules = self.get_torrent_rules(i, t, tracker_rules, label_rules)
 
@@ -415,11 +427,9 @@ class Core(CorePluginBase):
 
                 # If there are specific rules, ignore general remove rules
                 if specific_rules:
-                    remove_cond = filter_funcs.get(specific_rules[0][1])((i,t)) \
-                        >= specific_rules[0][2]
+                    remove_cond = filter_funcs.get(specific_rules[0][1])((i, t)) >= specific_rules[0][2]
                     for rule in specific_rules[1:]:
-                        check_filter = filter_funcs.get(rule[1])((i,t)) \
-                            >= rule[2]
+                        check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
                         remove_cond = sel_funcs.get(rule[0])((
                             check_filter,
                             remove_cond
@@ -442,7 +452,7 @@ class Core(CorePluginBase):
                     if not remove:
                         self.pause_torrent(t)
                     else:
-                        if self.remove_torrent(torrentmanager, i, remove_data):
+                        if self.remove_torrent(i, remove_data):
                             changed = True
 
         # If a torrent exemption state has been removed save changes

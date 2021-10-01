@@ -2,7 +2,7 @@ AutoRemovePlus
 ==============
 
 AutoRemovePlus is a plugin for [Deluge](http://deluge-torrent.org) that
-you can use to automatically remove torrents. Its
+you can use to automatically remove torrents. It's
 based on AutoRemove 0.1 by Jamie Lennox.
 
 This is a GtkUI and WebUI plugin.
@@ -25,13 +25,9 @@ Features
 
 Usage
 -----
-Look for torrents to remove every day:
-
-> Check every: 1
-
 Look for torrents to remove every hour:
 
-> Check every: 0.0416
+> Check every: 1
 
 Remove every torrent that meets minimum criteria:
 
@@ -49,13 +45,14 @@ Only remove torrents when the main HDD has less than 10 GB free:
 
 > Minimum HDD space: 10
 
-Remove torrents that have a ratio over 2.0 and have been seeding for at least 4 days:
+Remove torrents that have a ratio over 2.0 and have been seeding for at least 2 days:
 
-> Remove by: Ratio, Min: 2.0, and, Remove by: Seed Time, Min: 4  
+> Remove by: Ratio, Min: 2.0, and, Remove by: Seed Time, Min: 48
 
-Remove torrents that have a ratio over 2.0 or have been seeding for at least 4 days:
+Remove torrents that have a ratio over 2.0 or have been seeding for at least 10 hours:
 
-> Remove by: Ratio, Min: 2.0, or, Remove by: Seed Time, Min: 4
+> Remove by: Ratio, Min: 2.0, or, Remove by: Seed Time, Min: 10
+
 
 Remove torrents only according to first criteria:
 
