@@ -195,7 +195,7 @@ class Core(CorePluginBase):
         min_hdd_space = self.config['hdd_space']
         real_hdd_space = component.get("Core").get_free_space() / 1073741824.0
 
-        log.debug("Space: %s/%s" % (real_hdd_space, min_hdd_space))
+        log.debug("Free Space (real/min.required): %s/%s" % (real_hdd_space, min_hdd_space))
 
         # if deactivated delete torrents
         if min_hdd_space < 0.0:
@@ -270,6 +270,10 @@ class Core(CorePluginBase):
     def periodic_scan(self, *args, **kwargs):
         log.debug("AutoRemovePlus: starting periodic_scan()")
 
+        if not self.config['enabled']:
+            log.debug("AutoRemovePlus: plugin not enabled, skipping periodic_scan()")
+            return
+
         max_seeds = int(self.config['max_seeds'])
         count_exempt = self.config['count_exempt']
         remove_data = self.config['remove_data']
@@ -278,7 +282,6 @@ class Core(CorePluginBase):
         min_val = float(self.config['min'])
         min_val2 = float(self.config['min2'])
         remove = self.config['remove']
-        enabled = self.config['enabled']
         tracker_rules = self.config['tracker_rules']
         rule_1_chk = self.config['rule_1_enabled']
         rule_2_chk = self.config['rule_2_enabled']
@@ -406,62 +409,65 @@ class Core(CorePluginBase):
                 break  # break the loop, we have enough space
 
             log.debug(
-                "periodic_scan(): AutoRemovePlus: Remove torrent %s, %s"
+                "periodic_scan(): AutoRemovePlus: starting remove-torrent rule checking for %s, %s"
                 % (i, t.get_status(['name'])['name'])
             )
-            log.debug(
-                filter_funcs.get(self.config['filter'], _get_ratio)((i, t))
-            )
-            log.debug(
-                filter_funcs.get(self.config['filter2'], _get_ratio)((i, t))
-            )
 
-            if enabled:
-                specific_rules = self.get_torrent_rules(i, t, tracker_rules, label_rules)
+            specific_rules = self.get_torrent_rules(i, t, tracker_rules, label_rules)
 
-                remove_cond = False
+            remove_cond = False
 
-                # If there are specific rules, ignore general remove rules
-                if specific_rules:
-                    # Sort rules according to logical operators; AND is evaluated first
-                    specific_rules.sort(key=lambda rule: rule[0])
+            # If there are specific rules, ignore general remove rules
+            if specific_rules:
+                # Sort rules according to logical operators; AND is evaluated first
+                specific_rules.sort(key=lambda rule: rule[0])
 
-                    first_spec_rule = specific_rules[0]
-                    remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= first_spec_rule[2]
-                    for rule in specific_rules[1:]:
-                        check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
-                        logic_gate = sel_funcs.get(rule[0])  # and/or/xor
-                        remove_cond = logic_gate((
-                            check_filter,
-                            remove_cond
-                        ))
-                else:  # process general/global rules
-                    # Get result of first condition test
-                    filter_1 = filter_funcs.get(self.config['filter'], _get_ratio)((i, t)) >= min_val
-                    # Get result of second condition test
-                    filter_2 = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t)) >= min_val2
+                first_spec_rule = specific_rules[0]
+                remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= first_spec_rule[2]
+                for rule in specific_rules[1:]:
+                    check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
+                    logic_gate = sel_funcs.get(rule[0])  # and/or/xor
+                    remove_cond = logic_gate((
+                        check_filter,
+                        remove_cond
+                    ))
+            else:  # process general/global rules
+                filter1_res = filter_funcs.get(self.config['filter'], _get_ratio)((i, t))
+                filter2_res = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t))
 
-                    if rule_1_chk and rule_2_chk:
-                        # If both rules active use custom logical function
-                        logic_gate = sel_funcs.get(self.config['sel_func'])  # and/or/xor
-                        remove_cond = logic_gate((
-                            filter_1,
-                            filter_2
-                        ))
-                    elif rule_1_chk and not rule_2_chk:
-                        # Evaluate only first rule, since the other is not active
-                        remove_cond = filter_1
-                    elif not rule_1_chk and rule_2_chk:
-                        # Evaluate only second rule, since the other is not active
-                        remove_cond = filter_2
+                # Get result of first condition test
+                filter_1 = filter1_res >= min_val
+                # Get result of second condition test
+                filter_2 = filter2_res >= min_val2
 
-                # If logical functions are satisfied, remove or pause torrent:
-                if remove_cond:
-                    if not remove:
-                        self.pause_torrent(t)
-                    else:
-                        if self.remove_torrent(i, remove_data):
-                            changed = True
+                log.debug("filter1 enabled: [{}], filter2 enabled: [{}]".format(rule_1_chk, rule_2_chk))
+                log.debug("filter1: {} >= {} = {}; filter2: {} >= {} = {}".format(filter1_res, min_val, filter_1, filter2_res, min_val2, filter_2))
+
+                if rule_1_chk and rule_2_chk:
+                    logic_gate = self.config['sel_func']
+                    log.debug("both filters enabled, using logic gate: [{}]".format(logic_gate))
+
+                    # If both rules active use custom logical function
+                    logic_gate = sel_funcs.get(logic_gate)  # and/or/xor
+
+                    remove_cond = logic_gate((
+                        filter_1,
+                        filter_2
+                    ))
+                elif rule_1_chk and not rule_2_chk:
+                    # Evaluate only first rule, since the other is not active
+                    remove_cond = filter_1
+                elif not rule_1_chk and rule_2_chk:
+                    # Evaluate only second rule, since the other is not active
+                    remove_cond = filter_2
+
+            # If logical functions are satisfied, remove or pause torrent:
+            if remove_cond:
+                if not remove:
+                    self.pause_torrent(t)
+                else:
+                    if self.remove_torrent(i, remove_data):
+                        changed = True
 
         # If a torrent exemption state has been removed save changes
         if changed:
