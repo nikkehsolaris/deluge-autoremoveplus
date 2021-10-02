@@ -203,7 +203,7 @@ class Core(CorePluginBase):
 
         # if hdd space below minimum delete torrents
         if real_hdd_space > min_hdd_space:
-            return True  # there is enough space
+            return True  # there is enough space, do not delete torrents
         else:
             return False
 
@@ -371,8 +371,7 @@ class Core(CorePluginBase):
 
         # now that we have trimmed active torrents
         # check again to make sure we still need to proceed
-        if len(torrents) +\
-                (len(ignored_torrents) if count_exempt else 0) <= max_seeds:
+        if len(torrents) + (len(ignored_torrents) if count_exempt else 0) <= max_seeds:
             return
 
         # if we are counting ignored torrents towards our maximum
@@ -416,21 +415,17 @@ class Core(CorePluginBase):
             log.debug(
                 filter_funcs.get(self.config['filter2'], _get_ratio)((i, t))
             )
+
             if enabled:
-                # Get result of first condition test
-                filter_1 = filter_funcs.get(self.config['filter'], _get_ratio)((i, t)) >= min_val
-                # Get result of second condition test
-                filter_2 = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t)) >= min_val2
-
                 specific_rules = self.get_torrent_rules(i, t, tracker_rules, label_rules)
-
-                # Sort rules according to logical operators, AND is evaluated first
-                specific_rules.sort(key=lambda rule: rule[0])
 
                 remove_cond = False
 
                 # If there are specific rules, ignore general remove rules
                 if specific_rules:
+                    # Sort rules according to logical operators; AND is evaluated first
+                    specific_rules.sort(key=lambda rule: rule[0])
+
                     first_spec_rule = specific_rules[0]
                     remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= first_spec_rule[2]
                     for rule in specific_rules[1:]:
@@ -440,21 +435,27 @@ class Core(CorePluginBase):
                             check_filter,
                             remove_cond
                         ))
-                elif rule_1_chk and rule_2_chk:
-                    # If both rules active use custom logical function
-                    logic_gate = sel_funcs.get(self.config['sel_func'])  # and/or/xor
-                    remove_cond = logic_gate((
-                        filter_1,
-                        filter_2
-                    ))
-                elif rule_1_chk and not rule_2_chk:
-                    # Evaluate only first rule, since the other is not active
-                    remove_cond = filter_1
-                elif not rule_1_chk and rule_2_chk:
-                    # Evaluate only second rule, since the other is not active
-                    remove_cond = filter_2
+                else:  # process general/global rules
+                    # Get result of first condition test
+                    filter_1 = filter_funcs.get(self.config['filter'], _get_ratio)((i, t)) >= min_val
+                    # Get result of second condition test
+                    filter_2 = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t)) >= min_val2
 
-                # If logical functions are satisfied remove or pause torrent
+                    if rule_1_chk and rule_2_chk:
+                        # If both rules active use custom logical function
+                        logic_gate = sel_funcs.get(self.config['sel_func'])  # and/or/xor
+                        remove_cond = logic_gate((
+                            filter_1,
+                            filter_2
+                        ))
+                    elif rule_1_chk and not rule_2_chk:
+                        # Evaluate only first rule, since the other is not active
+                        remove_cond = filter_1
+                    elif not rule_1_chk and rule_2_chk:
+                        # Evaluate only second rule, since the other is not active
+                        remove_cond = filter_2
+
+                # If logical functions are satisfied, remove or pause torrent:
                 if remove_cond:
                     if not remove:
                         self.pause_torrent(t)
