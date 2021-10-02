@@ -13,8 +13,8 @@ Features
 --------
 - Select how many torrents are allowed at the same time.
 - Choose to remove or pause them based on multiple criteria age, seeders, seed time or ratio.
-- Set specific removal rules depending on tracker or label.
-- Remove only torrents from specific trackers or labels.
+- Set specific removal rules depending on tracker or LabelPlus label.
+- Remove only torrents from specific trackers or LabelPlus labels.
 - Only remove torrents if under a certain HDD space threshold.
 - Select if torrents have to fulfill both or either criteria.
 - Delete torrents in order (e.g. delete torrents with highest ratio first).
@@ -22,7 +22,7 @@ Features
 - Choose the removal interval.
 - Right click and select torrents that you don't want automatically removed.
 - Remove torrent data option.
-- Create an exempted tracker or label list, so that torrents that belong to those trackers or labels are not removed.
+- Create an exempted tracker or LabelPlus label list, so that torrents that belong to those trackers or labels are not removed.
 - Fully functional WebUI.  
 
 Usage
@@ -77,7 +77,7 @@ Development
 
 ```
 + Install python 2
-- likely py2 is unsupported, so first install pyenv:
+- py2 is likely unsupported on your distro, so first install pyenv:
   $ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 - install latest py2:  $ pyenv install 2.7.18
 - cd to project root and change to version:  $ pyenv local 2.7.18
