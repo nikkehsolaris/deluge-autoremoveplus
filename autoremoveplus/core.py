@@ -74,17 +74,19 @@ DEFAULT_PREFS = {
 def _get_ratio((i, t)):
     return t.get_ratio()
 
+
 def _age_in_days((i, t)):
     now = time.time()
-    added = t.get_status(['time_added'])['time_added']
+    #added = t.get_status(['time_added'])['time_added']  # this used in deluge v2 version
+    added = t.time_added
     log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
-    age_in_days = round((now - added) / 86400.0, 2)  # age in days
+    age_in_days = round((now - added) / 86400.0, 2)
     log.debug("_age_in_days(): Returning age: {} (in days)".format(age_in_days))
     return age_in_days
 
 
-def _date_added((i, t)):
-    return (time.time() - t.time_added) / 86400.0
+# def _date_added((i, t)):
+    # return (time.time() - t.time_added) / 86400.0
 
 
 # Add key label also to get_remove_rules():141
@@ -97,10 +99,11 @@ filter_funcs = {
     'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
 }
 
+
 sel_funcs = {
     'and': lambda (a, b): a and b,
     'or': lambda (a, b): a or b,
-    'xor': lambda (a ,b): (a and not b) or (not a and b)
+    'xor': lambda (a, b): (a and not b) or (not a and b)
 }
 
 
@@ -207,9 +210,10 @@ class Core(CorePluginBase):
     def pause_torrent(self, torrent):
         try:
             torrent.pause()
+            log.debug("pause_torrent(): successfully paused torrent: %s", torrent.torrent_id)
         except Exception, e:
             log.warn(
-                "AutoRemovePlus: Problems pausing torrent: %s", e
+                    "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
             )
 
     def remove_torrent(self, tid, remove_data):
@@ -235,11 +239,11 @@ class Core(CorePluginBase):
             for t in torrent.trackers:
                 for name, rules in tracker_rules.iteritems():
                     log.debug("get_torrent_rules(): processing name = {}, rules = {}, url = {}, find = {} ".format(name, rules, t['url'], t['url'].find(name.lower())))
-                    if(t['url'].find(name.lower()) != -1):
+                    if (t['url'].find(name.lower()) != -1):
                         for rule in rules:
                             total_rules.append(rule)
         except Exception as e:
-            log.warning("get_torrent_rules(): Exception with getting torrent rules for {}: {}".format(id, e))
+            log.warning("get_torrent_rules(): Exception with getting tracker rules for {}: {}".format(id, e))
             return total_rules
 
         if label_rules:
@@ -286,7 +290,7 @@ class Core(CorePluginBase):
             labels_enabled = True
             label_rules = self.config['label_rules']
         else:
-            log.debug("WARNING! LabelPlus plugin not active")
+            log.warning("WARNING! LabelPlus plugin not active")
             log.debug("No labels will be checked for exemptions!")
             label_rules = []
 
@@ -311,7 +315,7 @@ class Core(CorePluginBase):
             t = self.torrentmanager.torrents.get(i, None)
 
             # TODO: deluge2.0 version of this script doesn't have this try-ex-else block:
-            # likely because the end of this function is way more convoluted/feature-packed than in this ver?
+            # likely because the end of this function is way more convoluted/feature-packed than in this - delugev1 - ver?
             try:
                 finished = t.is_finished
             except Exception as e:
@@ -427,16 +431,19 @@ class Core(CorePluginBase):
 
                 # If there are specific rules, ignore general remove rules
                 if specific_rules:
-                    remove_cond = filter_funcs.get(specific_rules[0][1])((i, t)) >= specific_rules[0][2]
+                    first_spec_rule = specific_rules[0]
+                    remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= first_spec_rule[2]
                     for rule in specific_rules[1:]:
                         check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
-                        remove_cond = sel_funcs.get(rule[0])((
+                        logic_gate = sel_funcs.get(rule[0])  # and/or/xor
+                        remove_cond = logic_gate((
                             check_filter,
                             remove_cond
                         ))
                 elif rule_1_chk and rule_2_chk:
                     # If both rules active use custom logical function
-                    remove_cond = sel_funcs.get(self.config['sel_func'])((
+                    logic_gate = sel_funcs.get(self.config['sel_func'])  # and/or/xor
+                    remove_cond = logic_gate((
                         filter_1,
                         filter_2
                     ))
