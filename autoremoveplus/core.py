@@ -212,7 +212,7 @@ class Core(CorePluginBase):
             torrent.pause()
             log.debug("pause_torrent(): successfully paused torrent: %s", torrent.torrent_id)
         except Exception, e:
-            log.warn(
+            log.warning(
                     "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
             )
 
@@ -221,7 +221,7 @@ class Core(CorePluginBase):
             self.torrentmanager.remove(tid, remove_data=remove_data)
             log.debug("remove_torrent(): successfully removed torrent: %s", tid)
         except Exception, e:
-            log.warn(
+            log.warning(
                 "remove_torrent(): AutoRemovePlus: Problems removing torrent: %s", e
             )
         try:
