@@ -81,7 +81,7 @@ def _age_in_days((i, t)):
     added = t.time_added
     log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
     age_in_days = round((now - added) / 86400.0, 2)
-    log.debug("_age_in_days(): Returning age: {} (in days)".format(age_in_days))
+    log.debug("_age_in_days(): Returning age: [{} days]".format(age_in_days))
     return age_in_days
 
 
@@ -210,7 +210,7 @@ class Core(CorePluginBase):
     def pause_torrent(self, torrent):
         try:
             torrent.pause()
-            log.debug("pause_torrent(): successfully paused torrent: %s", torrent.torrent_id)
+            log.debug("pause_torrent(): successfully paused torrent: [%s]", torrent.torrent_id)
         except Exception, e:
             log.warning(
                     "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
@@ -219,10 +219,10 @@ class Core(CorePluginBase):
     def remove_torrent(self, tid, remove_data):
         try:
             self.torrentmanager.remove(tid, remove_data=remove_data)
-            log.debug("remove_torrent(): successfully removed torrent: %s", tid)
+            log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception, e:
             log.warning(
-                "remove_torrent(): AutoRemovePlus: Problems removing torrent: %s", e
+                    "remove_torrent(): AutoRemovePlus: Problems removing torrent [%s]: %s", tid, e
             )
         try:
             del self.torrent_states.config[tid]
@@ -243,7 +243,7 @@ class Core(CorePluginBase):
                         for rule in rules:
                             total_rules.append(rule)
         except Exception as e:
-            log.warning("get_torrent_rules(): Exception with getting tracker rules for {}: {}".format(id, e))
+            log.warning("get_torrent_rules(): Exception with getting tracker rules for [{}]: {}".format(id, e))
             return total_rules
 
         if label_rules:
@@ -261,9 +261,9 @@ class Core(CorePluginBase):
                         for rule in label_rules[label]:
                             total_rules.append(rule)
             except Exception as e:
-                log.warning("get_torrent_rules(): Cannot obtain torrent label for {}: {}".format(id, e))
+                log.warning("get_torrent_rules(): Cannot obtain torrent label for [{}]: {}".format(id, e))
 
-        log.debug("get_torrent_rules(): returning rules for {}: {}".format(id, total_rules))
+        log.debug("get_torrent_rules(): returning rules for [{}]: {}".format(id, total_rules))
         return total_rules
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
@@ -322,7 +322,7 @@ class Core(CorePluginBase):
             try:
                 finished = t.is_finished
             except Exception as e:
-                log.warning("periodic_scan(): Cannot obtain torrent 'is_finished' attribute: [{}]".format(e))
+                log.warning("periodic_scan(): Cannot obtain torrent 'is_finished' attribute: {}".format(e))
                 continue
             else:
                 if not finished:
@@ -340,8 +340,8 @@ class Core(CorePluginBase):
             for tracker, ex_tracker in (
                 (t, ex_t) for t in trackers for ex_t in exemp_trackers
             ):
-                if(tracker['url'].find(ex_tracker.lower()) != -1):
-                    log.debug("periodic_scan(): Found exempted tracker: %s" % (ex_tracker))
+                if (tracker['url'].find(ex_tracker.lower()) != -1):
+                    log.debug("periodic_scan(): Found exempted tracker: [%s]" % (ex_tracker))
                     ex_torrent = True
 
             # check if labels in exempted label list if Label plugin is enabled
@@ -362,7 +362,7 @@ class Core(CorePluginBase):
                             log.debug("periodic_scan(): Found exempted label: %s" % (ex_label))
                             ex_torrent = True
                 except Exception as e:
-                    log.warning("periodic_scan(): Cannot obtain torrent label. [{}]".format(e))
+                    log.warning("periodic_scan(): problem obtaining torrent label: {}".format(e))
 
             # if torrent tracker or label in exemption list, or torrent ignored
             # insert in the ignored torrents list
@@ -409,7 +409,7 @@ class Core(CorePluginBase):
                 break  # break the loop, we have enough space
 
             log.debug(
-                "periodic_scan(): AutoRemovePlus: starting remove-torrent rule checking for %s, %s"
+                "periodic_scan(): AutoRemovePlus: starting remove-torrent rule checking for [%s], %s"
                 % (i, t.get_status(['name'])['name'])
             )
 
