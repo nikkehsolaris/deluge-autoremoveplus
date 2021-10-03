@@ -294,7 +294,7 @@ class Core(CorePluginBase):
             label_rules = self.config['label_rules']
         else:
             log.warning("WARNING! LabelPlus plugin not active")
-            log.debug("No labels will be checked for exemptions!")
+            log.warning("No labels will be checked for exemptions!")
             label_rules = []
 
         # Negative max means unlimited seeds are allowed, so don't do anything
