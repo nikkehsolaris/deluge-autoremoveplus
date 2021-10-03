@@ -209,8 +209,10 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                 name: 'maxseedtorrents',
                 fieldLabel: _('Maximum Torrents'),
                 value: 0,
+                allowDecimals: false,
                 maxValue: 9999,
                 minValue: 0,
+                incrementValue: 1,
                 flex: 0.2
             }]
         });
@@ -296,13 +298,13 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             },{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Under: ')
+                text: _('Min: ')
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
                 //margins: '0 0 0 0',
                 name: 'min',
-                fieldLabel: _('Under'),
+                fieldLabel: _('Min'),
                 value: 0.0,
                 maxValue: 10000.0,
                 minValue: 0.0,
@@ -375,13 +377,13 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
             },{
                 xtype: 'label',
                 margins: '5 5 0 0',
-                text: _('Under: ')
+                text: _('Min: ')
             },{
                 xtype: 'spinnerfield',
                 //anchor: '20%',
                 //margins: '0 0 0 0',
                 name: 'min2',
-                fieldLabel: _('Under'),
+                fieldLabel: _('Min'),
                 value: 0.0,
                 maxValue: 10000.0,
                 minValue: 0.0,
@@ -567,7 +569,7 @@ Deluge.plugins.autoremoveplus.ui.PreferencePage = Ext.extend(Ext.TabPanel, {
                   editable: true,
                   editor: {
                     xtype: 'combo',
-                    store: ['and','or']
+                    store: ['and','or','xor']
                   }
                 },{
                   id: 'rule',

@@ -75,6 +75,7 @@ class GtkUI(GtkPluginBase):
         self.sel_func_store = gtk.ListStore(str)
         self.sel_func_store.append(["and"])
         self.sel_func_store.append(["or"])
+        self.sel_func_store.append(["xor"])
 
         # Buttons to add/delete rules
         self._new_rule = self.glade.get_widget("new_rule")
