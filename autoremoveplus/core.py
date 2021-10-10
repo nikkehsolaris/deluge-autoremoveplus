@@ -46,6 +46,8 @@ from deluge.core.rpcserver import export
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall, deferLater
+import os
+import subprocess
 
 import time
 
@@ -60,6 +62,7 @@ DEFAULT_PREFS = {
     'min': 0.0,
     'min2': 0.0,
     'hdd_space': -1.0,
+    'use_quota_for_free_space': False,
     'interval': 0.5,  # hours
     'sel_func': 'and',
     'remove': True,
@@ -83,6 +86,21 @@ def _age_in_days((i, t)):
     age_in_days = round((now - added) / 86400.0, 2)
     log.debug("_age_in_days(): Returning age: [{} days]".format(age_in_days))
     return age_in_days
+
+
+def _get_free_space_quota():
+    q = '/usr/bin/quota'
+    # if not os.path.isfile(q):
+        # return default_method(path)
+
+    quota_proc = subprocess.Popen([q, '--no-wrap', '--hide-device'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    q_out, q_err = quota_proc.communicate()
+    if quota_proc.returncode != 0 or len(q_err) > 0:
+        raise Exception('quota exited w/ {}'.format(quota_proc.returncode))
+
+    q_out = q_out.split('\n')[2].split()  # take 3rd line and split it up
+    free = (int(q_out[2]) - int(q_out[0])) / 976563  # hard_limit - used; note we convert KiB to GB
+    return free  # free quota, in GB
 
 
 # def _date_added((i, t)):
@@ -142,7 +160,7 @@ class Core(CorePluginBase):
         pass
 
     def start_looping(self):
-        log.warning('check interval loop starting')
+        log.info('check interval loop starting')
         self.looping_call.start(self.config['interval'] * 3600.0)
 
     @export
@@ -192,17 +210,26 @@ class Core(CorePluginBase):
         self.torrent_states.save()
 
     def check_min_space(self):
-        min_hdd_space = self.config['hdd_space']
-        real_hdd_space = component.get("Core").get_free_space() / 1073741824.0
-
-        log.debug("Free Space (real/min.required): %s/%s" % (real_hdd_space, min_hdd_space))
-
-        # if deactivated delete torrents
+        min_hdd_space = self.config['hdd_space']  # in GB
+        # if deactivated delete torrents regardless of remaining free drive space:
         if min_hdd_space < 0.0:
             return False
 
+        resolve_common_way = True
+        if self.config['use_quota_for_free_space']:
+            try:
+                real_free_space = _get_free_space_quota()
+                resolve_common_way = False
+            except Exception as e:
+                log.warning("check_min_space(): _get_free_space_quota() threw up: %s", e)
+
+        if resolve_common_way:
+            real_free_space = component.get("Core").get_free_space() / 1073741824.0  # bytes -> GB
+
+        log.debug("Free Space in GB (real/min.required): %s/%s" % (real_free_space, min_hdd_space))
+
         # if hdd space below minimum delete torrents
-        if real_hdd_space > min_hdd_space:
+        if real_free_space > min_hdd_space:
             return True  # there is enough space, do not delete torrents
         else:
             return False
@@ -217,16 +244,21 @@ class Core(CorePluginBase):
             )
 
     def remove_torrent(self, tid, remove_data):
+        log.debug("Running remove_torrent() for [{}] with remove data = {}".format(tid, remove_data))
         try:
             self.torrentmanager.remove(tid, remove_data=remove_data)
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
-        except Exception, e:
+        except Exception as e:
             log.warning(
                     "remove_torrent(): AutoRemovePlus: Problems removing torrent [%s]: %s", tid, e
             )
         try:
             del self.torrent_states.config[tid]
         except KeyError:
+            log.warning("remove_torrent(): AutoRemovePlus: no saved state for torrent {}".format(tid))
+            return True
+        except Exception as e:
+            log.warning("remove_torrent(): AutoRemovePlus: Error deleting state for torrent {}: {}".format(tid, e))
             return False
         else:
             return True
