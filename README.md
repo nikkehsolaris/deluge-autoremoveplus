@@ -5,7 +5,7 @@ AutoRemovePlus is a plugin for [Deluge v1.x](http://deluge-torrent.org) that
 you can use to automatically remove torrents. It's
 based on AutoRemove 0.1 by Jamie Lennox.
 
-For Deluge v2 support, see [this version](https://github.com/springjools/deluge-autoremoveplus)
+For Deluge v2 support, see [master branch](https://github.com/laur89/deluge-autoremoveplus/tree/master)
 
 This is a GtkUI and WebUI plugin.
 
