@@ -300,7 +300,7 @@ class Core(CorePluginBase):
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
     def periodic_scan(self, *args, **kwargs):
-        log.debug("AutoRemovePlus: starting periodic_scan()")
+        log.debug("AutoRemovePlus: beginning periodic_scan() exec")
 
         if not self.config['enabled']:
             log.debug("AutoRemovePlus: plugin not enabled, skipping periodic_scan()")
@@ -391,15 +391,14 @@ class Core(CorePluginBase):
                         (l, ex_l) for l in labels for ex_l in exemp_labels
                     ):
                         if(label.find(ex_label.lower()) != -1):
-                            log.debug("periodic_scan(): Found exempted label: %s" % (ex_label))
+                            log.debug("periodic_scan(): Found exempted label: [%s]" % (ex_label))
                             ex_torrent = True
                 except Exception as e:
                     log.warning("periodic_scan(): problem obtaining torrent label: {}".format(e))
 
             # if torrent tracker or label in exemption list, or torrent ignored
             # insert in the ignored torrents list
-            (ignored_torrents if ignored or ex_torrent else torrents)\
-                .append((i, t))
+            (ignored_torrents if (ignored or ex_torrent) else torrents).append((i, t))  # (id, torrent) tuple
 
         log.debug("periodic_scan(): Number of finished torrents: {0}".format(len(torrents)))
         log.debug("periodic_scan(): Number of ignored torrents: {0}".format(len(ignored_torrents)))
@@ -417,6 +416,7 @@ class Core(CorePluginBase):
                 max_seeds = 0
 
         # Alternate sort by primary and secondary criteria
+        # TODO: why is this sorting done?? we use tuple of (bool, bool) as sorting key??? why???
         torrents.sort(
             key=lambda x: (
                 filter_funcs.get(
@@ -447,11 +447,18 @@ class Core(CorePluginBase):
 
             specific_rules = self.get_torrent_rules(i, t, tracker_rules, label_rules)
 
-            remove_cond = False
+            remove_cond = False  # if torrent should be removed or paused
 
             # If there are specific rules, ignore general remove rules
             if specific_rules:
                 # Sort rules according to logical operators; AND is evaluated first
+                #
+                # TODO: why do we want AND to be first? doesn't it make at least
+                # very first AND pointless, as first rule's condition is dropped/ignored
+                # anyways; think AND should be evaluated LAST instead!
+                # oooor: don't sort at all, and leave the order as they're defined in conf/UI.
+                # note it'd be perfect to disable the logic gate on first item as it's
+                # ignored anyway;
                 specific_rules.sort(key=lambda rule: rule[0])
 
                 first_spec_rule = specific_rules[0]
@@ -459,6 +466,7 @@ class Core(CorePluginBase):
                 for rule in specific_rules[1:]:
                     check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
                     logic_gate = sel_funcs.get(rule[0])  # and/or/xor
+                    # TODO: should we be calling logic_gate() with single, tuple arg?
                     remove_cond = logic_gate((
                         check_filter,
                         remove_cond

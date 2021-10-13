@@ -113,6 +113,29 @@ python setup.py bdist_egg
 
 The resulting `AutoRemovePlus-x-py2.x.egg` file can be found in the `/dist` directory.
 
+Roadmap
+-------
+- similar to `TotalTraffic` plugin, start tracking upload bandwidth _per
+  torrent_. Idea is to enable rule to only remove torrents that have uploaded
+  less than X amount in past Y time period. So removal rule should be something like
+
+```
+if (ratio > 1 || seed_time > 7days) && t.recent_upload < X:
+    t.remove
+
+TODO: how would recent_upload be defined? guess we want it to represent
+something like [KiB in past 1h]. Both data amount & time period need to
+be configurable.
+
+We likely want to keep current torrent data in-memory, and write it down
+periodically to `autoremoveplusstates.conf`; again, sort of similar what
+TotalTraffic is doing.
+```
+This removes the impossible target ratio definition - we should just set the
+_minimum_ ratio & seed time rules, and let the active torrents upload however
+long they can.
+Additional problem will be incorporating it with our UI though.
+
 Workarounds
 -----------
 
