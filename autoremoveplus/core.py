@@ -65,6 +65,9 @@ DEFAULT_PREFS = {
     'use_quota_for_free_space': False,
     'interval': 0.5,  # hours
     'sel_func': 'and',
+    'force_reannounce_before_remove': False,
+    'reannounce_max_wait_sec': 20,
+    'skip_removal_on_reannounce_failure': True,
     'remove': True,
     'enabled': False,
     'tracker_rules': {},
@@ -81,7 +84,7 @@ def _get_ratio((i, t)):
 def _age_in_days((i, t)):
     now = time.time()
     #added = t.get_status(['time_added'])['time_added']  # this used in deluge v2 version
-    added = t.time_added
+    added = t.time_added  # TODO likley need to change for Deluge v2
     log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
     age_in_days = round((now - added) / 86400.0, 4)
     log.debug("_age_in_days(): Returning age: [{} days]".format(age_in_days))
@@ -238,15 +241,70 @@ class Core(CorePluginBase):
         try:
             torrent.pause()
             log.debug("pause_torrent(): successfully paused torrent: [%s]", torrent.torrent_id)
-        except Exception, e:
+        except Exception as e:
             log.warning(
                     "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
             )
 
-    def remove_torrent(self, tid, remove_data):
-        log.debug("Running remove_torrent() for [{}] with remove data = {}".format(tid, remove_data))
+    # note: great hint on libtorrent force_announce inner-workings is at https://forum.deluge-torrent.org/viewtopic.php?p=230210#p230210
+    def reannounce(self, tid, t, force_announce):
+        # note the first two announce_* arg values are the defaults from https://libtorrent.org/reference-Torrent_Handle.html#force_reannounce()
+        announce_seconds = 0    # how many seconds from now to issue the tracker announces; default = 0
+        announce_trkr_idx = -1  # specifies which tracker to re-announce. If set to -1 (which is the default), all trackers are re-announced.
+        announce_flags = 1  # TODO: announce_flags type changes from libtorrent RC_1_2 so likley/maybe have to change for Deluge 2!:
+
+        t_end = time.time() + self.config['reannounce_max_wait_sec']
+        while time.time() < t_end:
+            if force_announce:
+                try:
+                    # if t.force_reannounce(): return True  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
+                    t.handle.force_reannounce(announce_seconds, announce_trkr_idx, announce_flags)  # note libtorrent's force_reannounce() returntype is void
+                    log.error("AutoRemovePlus.reannounce(): forced reannounce OK for torrent [%s]", tid)
+                    return True
+                except Exception as e:
+                    log.error(
+                            "AutoRemovePlus.reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e
+                    )
+            else:
+                if t.force_reannounce():
+                    log.error("AutoRemovePlus.reannounce(): non-forced reannounce OK for torrent [%s]", tid)
+                    return True
+                else:
+                    log.error(
+                        "AutoRemovePlus.reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
+            time.sleep(5)  # TODO: make this configureable?
+
+        log.error("AutoRemovePlus.reannounce(): Problems reannouncing for torrent: [%s]; giving up", tid)
+        return False
+
+
+    def remove_torrent(self, tid, torrent, remove_data):
+        force_announce = self.config['force_reannounce_before_remove']
+
+        # update trackers to make sure the latest upload amount & time are reflected
+        # prior to nuking torrent.
+        #
+        # TODO: maybe reannounce should also be called on torrent completion event, not only prior to removal?
+        if not self.reannounce(tid, torrent, force_announce):
+            if self.config['skip_removal_on_reannounce_failure']:
+                log.error(
+                    "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
+                return False
+            else:
+                log.error(
+                    "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; removing regardless...", force_announce, tid)
+
+        log.error("Running remove_torrent() for [{}] with remove data = {}".format(tid, remove_data))
         try:
             self.torrentmanager.remove(tid, remove_data=remove_data)
+
+            # seed_time = torrent.get_status(['seeding_time'])['seeding_time']
+            # age_sec = time.time() - torrent.time_added  # TODO likley need to change for Deluge v2
+            # total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
+            # total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
+
+            # log.debug("remove_torrent(): successfully removed torrent: [%s]. seed_time: [%s], age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
+                    # tid, seed_time, age_sec, total_time_uploaded, total_time_downloaded)
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception as e:
             log.warning(
@@ -512,7 +570,7 @@ class Core(CorePluginBase):
                 if not remove:
                     self.pause_torrent(t)
                 else:
-                    if self.remove_torrent(i, remove_data):
+                    if self.remove_torrent(i, t, remove_data):
                         changed = True
 
         # If a torrent exemption state has been removed save changes

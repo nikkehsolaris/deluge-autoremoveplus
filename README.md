@@ -136,6 +136,11 @@ _minimum_ ratio & seed time rules, and let the active torrents upload however
 long they can.
 Additional problem will be incorporating it with our UI though.
 
+- TODO: also mhertz mentioned in one of our threads that deluge2 has `get_status()`
+  method that caches results, causing issues. apparently one of the forks of
+  plugin has removed the caching.
+
+
 Workarounds
 -----------
 
