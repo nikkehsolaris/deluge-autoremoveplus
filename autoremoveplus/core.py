@@ -65,6 +65,7 @@ DEFAULT_PREFS = {
     'use_quota_for_free_space': False,
     'interval': 0.5,  # hours
     'sel_func': 'and',
+    'reannounce_before_remove': False,
     'remove': True,
     'enabled': False,
     'tracker_rules': {},
@@ -243,7 +244,11 @@ class Core(CorePluginBase):
                     "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
             )
 
-    def remove_torrent(self, tid, remove_data):
+    def remove_torrent(self, tid, torrent, remove_data):
+        if self.config['reannounce_before_remove']:
+            if not torrent.force_reannounce():
+                return False  # note if reannounce fails, we skip removal
+
         log.debug("Running remove_torrent() for [{}] with remove data = {}".format(tid, remove_data))
         try:
             self.torrentmanager.remove(tid, remove_data=remove_data)
@@ -512,7 +517,7 @@ class Core(CorePluginBase):
                 if not remove:
                     self.pause_torrent(t)
                 else:
-                    if self.remove_torrent(i, remove_data):
+                    if self.remove_torrent(i, t, remove_data):
                         changed = True
 
         # If a torrent exemption state has been removed save changes
