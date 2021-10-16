@@ -83,7 +83,7 @@ def _age_in_days((i, t)):
     #added = t.get_status(['time_added'])['time_added']  # this used in deluge v2 version
     added = t.time_added
     log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
-    age_in_days = round((now - added) / 86400.0, 2)
+    age_in_days = round((now - added) / 86400.0, 4)
     log.debug("_age_in_days(): Returning age: [{} days]".format(age_in_days))
     return age_in_days
 
@@ -110,10 +110,10 @@ def _get_free_space_quota():
 # Add key label also to get_remove_rules():141
 filter_funcs = {
     'func_ratio': _get_ratio,
-    #'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 2),
+    #'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 4),
     'func_added': _age_in_days,
     'func_seed_time': lambda (i, t):
-        round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 2),
+        round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 4),
     'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
 }
 
