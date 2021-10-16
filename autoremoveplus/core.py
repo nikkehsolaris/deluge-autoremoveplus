@@ -417,6 +417,8 @@ class Core(CorePluginBase):
 
         # Alternate sort by primary and secondary criteria
         # TODO: why is this sorting done?? we use tuple of (bool, bool) as sorting key??? why???
+        #       think it's so a-la lower-ratio (or whatever else metric) torrents are
+        #       processed, hence removed, sooner?
         torrents.sort(
             key=lambda x: (
                 filter_funcs.get(
@@ -459,6 +461,10 @@ class Core(CorePluginBase):
                 # oooor: don't sort at all, and leave the order as they're defined in conf/UI.
                 # note it'd be perfect to disable the logic gate on first item as it's
                 # ignored anyway;
+                #
+                # TODO2: also issues how specific_rules gets compiled: we process all tracker
+                #        rules, followed by label rules. as it stands it's difficult to keep the
+                #        _true_ rule order!
                 specific_rules.sort(key=lambda rule: rule[0])
 
                 first_spec_rule = specific_rules[0]

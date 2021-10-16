@@ -257,7 +257,7 @@ class GtkUI(GtkPluginBase):
         for row in self._view_trackers.get_model():
             if row[0] == "Tracker":
                 trackers.append(row[1])
-            else:
+            else:  # row[0] == "Label"
                 labels.append(row[1])
 
         tracker_rules = {}
@@ -275,7 +275,7 @@ class GtkUI(GtkPluginBase):
             # Insert rule in correct list tracker/label
             if row[0] == "Tracker":
                 tracker_rules.setdefault(row[1], []).append(rule)
-            else:
+            else:  # row[0] == "Label"
                 label_rules.setdefault(row[1], []).append(rule)
 
         config = {
@@ -327,6 +327,8 @@ class GtkUI(GtkPluginBase):
         self.disable_rule(config['rule_2_enabled'], 2)
 
 
+        # TODO: tracker & label rules should be in same array to preserve ordering!
+        # has implications on logic in core.py
         self.lstore_rules.clear()
         tracker_rules = config['tracker_rules']
         for tracker in tracker_rules:
@@ -335,6 +337,7 @@ class GtkUI(GtkPluginBase):
                     if row[0] == rule[1]:
                         rule_text = row[1]
 
+                #                          Type       Name   Operator Remove rule  Minimum
                 self.lstore_rules.append(['Tracker', tracker, rule[0], rule_text, rule[2]])
 
         label_rules = config['label_rules']
@@ -344,6 +347,7 @@ class GtkUI(GtkPluginBase):
                     if row[0] == rule[1]:
                         rule_text = row[1]
 
+                #                          Type   Name   Operator Remove rule  Minimum
                 self.lstore_rules.append(['Label', label, rule[0], rule_text, rule[2]])
 
         self.lstore.clear()
@@ -409,7 +413,7 @@ class GtkUI(GtkPluginBase):
         colt = gtk.TreeViewColumn(_("Name"), crt, text=1)
         view.append_column(colt)
 
-        # Create field to set the type of selection and/or
+        # Create field to set the type of selection and/or/xor
         liststore_field_logic = self.sel_func_store
         crl = gtk.CellRendererCombo()
         crl.set_property("editable", True)
