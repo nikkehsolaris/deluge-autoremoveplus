@@ -40,6 +40,8 @@
 #
 
 from setuptools import setup
+import os
+import glob
 
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"
@@ -61,6 +63,7 @@ setup(
 
     packages=[__plugin_name__.lower()],
     package_data = __pkg_data__,
+    python_requires='>=3.7',
 
     entry_points="""
     [deluge.plugin.core]
@@ -70,4 +73,16 @@ setup(
     [deluge.plugin.web]
     %s = %s:WebUIPlugin
     """ % ((__plugin_name__, __plugin_name__.lower())*3)
+)
+
+# original setup-generated filename: AutoRemovePlus-0.6.3-py3.9.egg
+
+# rename generated.egg to exclude the py version from filename:
+list_of_eggs = glob.glob('./dist/*.egg')
+newest_egg = max(list_of_eggs, key=os.path.getmtime)
+#newest_egg  = os.path.join('dist', os.listdir('dist')[0])
+
+os.rename(
+    newest_egg,
+    os.path.join('dist', __plugin_name__ + '-v' + __version__ + '.egg')
 )

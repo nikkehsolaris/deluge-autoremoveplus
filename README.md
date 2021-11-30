@@ -7,11 +7,24 @@ based on AutoRemove 0.1 by Jamie Lennox.
 
 Other forks from v1 that support Deluge v2:
 - https://github.com/springjools/deluge-autoremoveplus  -note this one has working gtk3 ui (actually not sure)
-- https://github.com/tote94/deluge-autoremoveplus  -think this is only webui (actually not sure)
+- https://github.com/tote94/deluge-autoremoveplus  -think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
+it's _not_ springjools that has the working GTKui prefs page;
 
 For Deluge v1 support, see [deluge-1 branch](https://github.com/laur89/deluge-autoremoveplus/tree/deluge-1)
 
 This is a GtkUI and WebUI plugin.
+
+Delete this block after deluge2-conversion is finished: {
+  !! When converting to Deluge2, see these mhertz' versions:
+  - [his tote94 fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234008#p234008)
+  - [his springjools fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234007#p234007)
+  !!
+  + some other stuff to remember for deluge2-conversion:
+  - iteritems vs items
+  - tuple as args to funcs
+  - logging
+  - config.keys() vs list(config.keys())
+}
 
 Features
 --------
@@ -75,7 +88,7 @@ The rest of the options are pretty self explanatory
 
 Development
 -----------
-- use python 2.7, as this version of plugin doesn't support Deluge 2 that runs on py3
+- use python 3
 - virutal env manager `virtualenv`
 - run:
 
@@ -114,7 +127,9 @@ Run:
 python setup.py bdist_egg
 ```
 
-The resulting `AutoRemovePlus-x-py3.x.egg` file can be found in the `/dist` directory.
+The resulting `AutoRemovePlus-vX.Y.Z.egg` file can be found in the `/dist` directory.
+Note the .egg doesn't contain python version in the filename - our modified
+`setup.py` has logic that renames the generated .egg.
 
 Roadmap/TODO
 ------------
@@ -163,13 +178,9 @@ avg_upload_speed = torrent['total_uploaded'] / torrent['seeding_time'] if torren
   into? OR: include some cleanup logic in the plugin itself to remove state info
   for torrents that are no longer around, ie they had to be removed by some other means.
 - according to [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233390#p233390),
-  torrmanager.get_status() can accept `update=True` param not to retrun cached results.
+  torrmanager.get_status() can accept `update=True` param not to return cached results.
   this makes no sense for static fields such as name or size, but might be needed for
-  `seed_time`, `ratio`...
-
-- TODO: also mhertz mentioned in one of our threads that deluge2 has `get_status()`
-  method that caches results, causing issues. apparently one of the forks of
-  plugin has removed the caching.
+  `seed_time`, `ratio`...; apparently one of the forks of plugin has removed the caching.
 
 
 Workarounds
@@ -177,7 +188,7 @@ Workarounds
 
 If after building the egg file, the plugin does not load in Deluge:
 
-- Delete the `AutoRemovePlus-x-py3.x.egg` in `/deluge/plugins` directory.
+- Delete the `AutoRemovePlus-vX.Y.Z.egg` in `/deluge/plugins` directory.
 - Delete the `AutoRemovePlus.conf` files.
 - Restart Deluge.
 
