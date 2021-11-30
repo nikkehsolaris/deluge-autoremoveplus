@@ -38,7 +38,7 @@
 #    statement from all source files in the program, then also delete it here.
 #
 
-from deluge.log import LOG as log
+import logging
 from deluge.plugins.pluginbase import CorePluginBase
 import deluge.component as component
 import deluge.configmanager
@@ -50,6 +50,8 @@ import os
 import subprocess
 
 import time
+
+log = logging.getLogger(__name__)
 
 DEFAULT_PREFS = {
     'max_seeds': 0,
