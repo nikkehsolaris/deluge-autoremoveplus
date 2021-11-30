@@ -106,6 +106,12 @@ def _get_free_space_quota():
     return free  # free quota, in GB
 
 
+def _get_seed_time((i, t)):
+    st = round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 4)
+    log.debug("AutoRemovePlus._get_seed_time(): %s hours", st)
+    return st
+
+
 # def _date_added((i, t)):
     # return (time.time() - t.time_added) / 86400.0
 
@@ -115,8 +121,7 @@ filter_funcs = {
     'func_ratio': _get_ratio,
     #'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 4),
     'func_added': _age_in_days,
-    'func_seed_time': lambda (i, t):
-        round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 4),
+    'func_seed_time': _get_seed_time,
     'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
 }
 
@@ -259,18 +264,18 @@ class Core(CorePluginBase):
                 try:
                     # if t.force_reannounce(): return True  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     t.handle.force_reannounce(announce_seconds, announce_trkr_idx, announce_flags)  # note libtorrent's force_reannounce() returntype is void
-                    log.error("AutoRemovePlus.reannounce(): forced reannounce OK for torrent [%s]", tid)
+                    log.debug("AutoRemovePlus.reannounce(): forced reannounce OK for torrent [%s]", tid)
                     return True
                 except Exception as e:
-                    log.error(
+                    log.warning(
                             "AutoRemovePlus.reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e
                     )
             else:
                 if t.force_reannounce():
-                    log.error("AutoRemovePlus.reannounce(): non-forced reannounce OK for torrent [%s]", tid)
+                    log.debug("AutoRemovePlus.reannounce(): non-forced reannounce OK for torrent [%s]", tid)
                     return True
                 else:
-                    log.error(
+                    log.warning(
                         "AutoRemovePlus.reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
             time.sleep(5)  # TODO: make this configureable?
 
@@ -279,6 +284,12 @@ class Core(CorePluginBase):
 
 
     def remove_torrent(self, tid, torrent, remove_data):
+        # extra logging for debugging premature torrent removal issues: {
+        # seed_time = torrent.get_status(['seeding_time'])['seeding_time']
+        # seed_time_h = _get_seed_time((tid, torrent))
+        # log.error("remove_torrent(): pre-announce seed_time: [%s], h: [%s]", seed_time, seed_time_h)
+        # }
+
         force_announce = self.config['force_reannounce_before_remove']
 
         # update trackers to make sure the latest upload amount & time are reflected
@@ -287,24 +298,28 @@ class Core(CorePluginBase):
         # TODO: maybe reannounce should also be called on torrent completion event, not only prior to removal?
         if not self.reannounce(tid, torrent, force_announce):
             if self.config['skip_removal_on_reannounce_failure']:
-                log.error(
+                log.warning(
                     "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
                 return False
             else:
-                log.error(
+                log.warning(
                     "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; removing regardless...", force_announce, tid)
 
-        log.error("Running remove_torrent() for [{}] with remove data = {}".format(tid, remove_data))
         try:
+            seed_time = torrent.get_status(['seeding_time'])['seeding_time']
+            seed_time_h = _get_seed_time((tid, torrent))
+            total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
+            total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
+            age_sec = time.time() - torrent.time_added  # TODO likley need to change for Deluge v2, ie unsure if t.time_added property is still accessible like that
+            # note these 2 total_time_* are in bytes, not time values:
+            total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
+            total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
+
+            log.error("remove_torrent(): removing torrent [%s]... remove_data = %s, seed_time: [%s], h: [%s], ratio: %s, age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
+                      tid, remove_data, seed_time, seed_time_h, torrent.get_ratio(), age_sec, total_time_uploaded, total_time_downloaded)
+
             self.torrentmanager.remove(tid, remove_data=remove_data)
 
-            # seed_time = torrent.get_status(['seeding_time'])['seeding_time']
-            # age_sec = time.time() - torrent.time_added  # TODO likley need to change for Deluge v2
-            # total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
-            # total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
-
-            # log.debug("remove_torrent(): successfully removed torrent: [%s]. seed_time: [%s], age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
-                    # tid, seed_time, age_sec, total_time_uploaded, total_time_downloaded)
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception as e:
             log.warning(
@@ -526,15 +541,20 @@ class Core(CorePluginBase):
                 specific_rules.sort(key=lambda rule: rule[0])
 
                 first_spec_rule = specific_rules[0]
-                remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= first_spec_rule[2]
-                for rule in specific_rules[1:]:
-                    check_filter = filter_funcs.get(rule[1])((i, t)) >= rule[2]
-                    logic_gate = sel_funcs.get(rule[0])  # and/or/xor
+                remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= float(first_spec_rule[2])
+                log.error("1. spec rule %s: gate [%s]. fun: [%s], val: %s; remove_cond: %s",
+                          i, first_spec_rule[0], first_spec_rule[1], float(first_spec_rule[2]), remove_cond)
+
+                for rule_seq, rule in enumerate(specific_rules[1:], start=2):
+                    check_filter = filter_funcs.get(rule[1])((i, t)) >= float(rule[2])
+                    logic_gate = sel_funcs.get(rule[0])  # and/or/xor func
                     # TODO: should we be calling logic_gate() with single, tuple arg?
                     remove_cond = logic_gate((
                         check_filter,
                         remove_cond
                     ))
+                    log.error("%s. spec rule: gate [%s]. fun: [%s], val: %s; rule result: %s, aggregate remove_cond: %s",
+                              rule_seq, rule[0], rule[1], float(rule[2]), check_filter, remove_cond)
             else:  # process general/global rules
                 filter1_res = filter_funcs.get(self.config['filter'], _get_ratio)((i, t))
                 filter2_res = filter_funcs.get(self.config['filter2'], _get_ratio)((i, t))
@@ -544,15 +564,15 @@ class Core(CorePluginBase):
                 # Get result of second condition test
                 filter_2 = filter2_res >= min_val2
 
-                log.debug("filter1 enabled: [{}], filter2 enabled: [{}]".format(rule_1_chk, rule_2_chk))
-                log.debug("filter1: {} >= {} = {}; filter2: {} >= {} = {}".format(filter1_res, min_val, filter_1, filter2_res, min_val2, filter_2))
+                log.error("[{}] filter1 enabled: [{}], filter2 enabled: [{}]".format(i, rule_1_chk, rule_2_chk))
+                log.error("filter1: {} >= {} = {}; filter2: {} >= {} = {}".format(filter1_res, min_val, filter_1, filter2_res, min_val2, filter_2))
 
                 if rule_1_chk and rule_2_chk:
                     logic_gate = self.config['sel_func']
                     log.debug("both filters enabled, using logic gate: [{}]".format(logic_gate))
 
                     # If both rules active use custom logical function
-                    logic_gate = sel_funcs.get(logic_gate)  # and/or/xor
+                    logic_gate = sel_funcs.get(logic_gate)  # and/or/xor func
 
                     remove_cond = logic_gate((
                         filter_1,
