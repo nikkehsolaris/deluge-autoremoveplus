@@ -80,11 +80,11 @@ Development
 - run:
 
 ```
-+ Install python 2
-- py2 is likely unsupported on your distro, so first install pyenv:
++ Install python 3.7  (or whatever your seedbox uses for python3; any v3 should be ok though)
+- first install pyenv:
   $ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
-- install latest py2:  $ pyenv install 2.7.18
-- cd to project root and change to version:  $ pyenv local 2.7.18
+- install py3:  $ pyenv install 3.9.7
+- cd to project root and change to version:  $ pyenv local 3.9.7
   - this will create .python-version file at the root
 - verify your py version: $ python --version
 
@@ -97,7 +97,8 @@ A) manually... (not recommended):
 - to switch projects or just leave the venv, run:  $ deactivate
 B) ...or using pyenv (recommended):
 - this step might still be needed, unsure:  install virtualenv:  $ pip install virtualenv
-- create venv:  $ pyenv virtualenv venv27  (again, 'venv27' is just the name/location)
+- create venv:  $ pyenv virtualenv venv39  (again, 'venv39' is just the name/location of the env)
+- switch to said env:  $ pyenv local venv39  (modifies project's .python-version file)
 - if you have [eval "$(pyenv virtualenv-init -)"] in your .bashrc, then
   env activation/deactivation should be automatic; to do it manually, then
     pyenv activate <name>
@@ -113,7 +114,7 @@ Run:
 python setup.py bdist_egg
 ```
 
-The resulting `AutoRemovePlus-x-py2.x.egg` file can be found in the `/dist` directory.
+The resulting `AutoRemovePlus-x-py3.x.egg` file can be found in the `/dist` directory.
 
 Roadmap/TODO
 ------------
@@ -176,7 +177,7 @@ Workarounds
 
 If after building the egg file, the plugin does not load in Deluge:
 
-- Delete the `AutoRemovePlus-x-py2.x.egg` in `/deluge/plugins` directory.
+- Delete the `AutoRemovePlus-x-py3.x.egg` in `/deluge/plugins` directory.
 - Delete the `AutoRemovePlus.conf` files.
 - Restart Deluge.
 
