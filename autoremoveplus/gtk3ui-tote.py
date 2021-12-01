@@ -81,6 +81,7 @@ class Gtk3UI(Gtk3PluginBase):
         self.sel_func_store = Gtk.ListStore(str)
         self.sel_func_store.append(["and"])
         self.sel_func_store.append(["or"])
+        self.sel_func_store.append(["xor"])
 
         # Buttons to add/delete rules
         self._new_rule = self.builder.get_object("new_rule")
