@@ -38,11 +38,15 @@
 #    statement from all source files in the program, then also delete it here.
 #
 
+import logging
 from deluge.plugins.init import PluginInitBase
+
+log = logging.getLogger(__name__)
 
 
 class CorePlugin(PluginInitBase):
     def __init__(self, plugin_name):
+        log.debug("Initing: {}, {}".format(self, plugin_name))
         from core import Core as _plugin_cls
         self._plugin_cls = _plugin_cls
         super(CorePlugin, self).__init__(plugin_name)
@@ -53,6 +57,13 @@ class GtkUIPlugin(PluginInitBase):
         from gtkui import GtkUI as _plugin_cls
         self._plugin_cls = _plugin_cls
         super(GtkUIPlugin, self).__init__(plugin_name)
+
+
+class Gtk3UIPlugin(PluginInitBase):
+    def __init__(self, plugin_name):
+        from autoremoveplus.gtk3ui import Gtk3UI as _plugin_cls
+        self._plugin_cls = _plugin_cls
+        super(Gtk3UIPlugin, self).__init__(plugin_name)
 
 
 class WebUIPlugin(PluginInitBase):
