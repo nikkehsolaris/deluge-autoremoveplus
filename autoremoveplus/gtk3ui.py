@@ -1,8 +1,9 @@
-from __future__ import unicode_literals
 #
 # gtkui.py
 #
+# Copyright (C) 2020 Ervin Toth <tote.ervin@gmail.com>
 # Copyright (C) 2014-2016 Omar Alvarez <osurfer3@hotmail.com>
+# Copyright (C) 2013 Sven Klomp <mail@klomp.eu>
 # Copyright (C) 2011 Jamie Lennox <jamielennox@gmail.com>
 #
 # Basic plugin template created by:
@@ -23,29 +24,33 @@ from __future__ import unicode_literals
 # See the GNU General Public License for more details.
 #
 # You should have received a copy of the GNU General Public License
-# along with deluge.    If not, write to:
-#   The Free Software Foundation, Inc.,
-#   51 Franklin Street, Fifth Floor
-#   Boston, MA  02110-1301, USA.
+# along with deluge. If not, write to:
+# 	The Free Software Foundation, Inc.,
+# 	51 Franklin Street, Fifth Floor
+# 	Boston, MA  02110-1301, USA.
 #
-#    In addition, as a special exception, the copyright holders give
-#    permission to link the code of portions of this program with the OpenSSL
-#    library.
-#    You must obey the GNU General Public License in all respects for all of
-#    the code used other than OpenSSL. If you modify file(s) with this
-#    exception, you may extend this exception to your version of the file(s),
-#    but you are not obligated to do so. If you do not wish to do so, delete
-#    this exception statement from your version. If you delete this exception
-#    statement from all source files in the program, then also delete it here.
+# In addition, as a special exception, the copyright holders give
+# permission to link the code of portions of this program with the OpenSSL
+# library.
+#
+# You must obey the GNU General Public License in all respects for all of
+# the code used other than OpenSSL. If you modify file(s) with this
+# exception, you may extend this exception to your version of the file(s),
+# but you are not obligated to do so. If you do not wish to do so, delete
+# this exception statement from your version. If you delete this exception
+# statement from all source files in the program, then also delete it here.
 #
 
-import logging
+# from __future__ import unicode_literals  TODO: verify this import is not needed w/ py3
+
 from gi.repository import Gtk
+
+import logging
 from deluge.ui.client import client
 from deluge.plugins.pluginbase import Gtk3PluginBase
 import deluge.component as component
 
-from autoremoveplus.common import get_resource
+from .common import get_resource
 
 log = logging.getLogger(__name__)
 
@@ -54,7 +59,7 @@ class Gtk3UI(Gtk3PluginBase):
 
     def enable(self):
         log.debug("Enabling AutoRemovePlus...")
-        self.builder = Gtk.Builder.new_from_file(get_resource("config.ui")) #gtk.glade.XML(get_resource("config.glade"))
+        self.builder = Gtk.Builder.new_from_file(get_resource("config.ui"))
         component.get("Preferences").add_page(
             "AutoRemovePlus",
             self.builder.get_object("prefs_box")
@@ -111,6 +116,7 @@ class Gtk3UI(Gtk3PluginBase):
         cbo_sel_func.add_attribute(cell, 'text', 0)
         cbo_sel_func.set_model(self.sel_func_store)
         cbo_sel_func.set_active(0)
+
         self.builder.get_object("dummy").set_model(self.sel_func_store)
 
         self._new_tracker = self.builder.get_object("new_tracker")
@@ -193,34 +199,21 @@ class Gtk3UI(Gtk3PluginBase):
     def on_click_remove(self, check):
         checked = check.get_active()
         self.builder.get_object("chk_remove_data").set_sensitive(checked)
-        self.builder.get_object("chk_remove_data2").set_sensitive(checked)
 
     def disable_all_widgets(self, checked):
         self.builder.get_object("hbox4").set_sensitive(checked)
         self.builder.get_object("hbox2").set_sensitive(checked)
-        self.builder.get_object("hbox3").set_sensitive(checked)
-        self.builder.get_object("hbox9").set_sensitive(checked)
-        self.builder.get_object("hbox10").set_sensitive(checked)
         self.builder.get_object("hbox6").set_sensitive(checked)
         self.builder.get_object("hbox1").set_sensitive(checked)
         self.builder.get_object("hbox5").set_sensitive(checked)
         self.builder.get_object("vbox2").set_sensitive(checked)
         self.builder.get_object("chk_count").set_sensitive(checked)
         self.builder.get_object("chk_remove").set_sensitive(checked)
-        self.builder.get_object("chk_remove2").set_sensitive(checked)
-        self.builder.get_object("chk_remove3").set_sensitive(checked)
         self.builder.get_object("chk_remove4").set_sensitive(checked)
-        self.builder.get_object("chk_pause").set_sensitive(checked)
         if not checked:
             self.builder.get_object("chk_remove_data").set_sensitive(checked)
         else:
             self.builder.get_object("chk_remove_data").set_sensitive(
-                self.builder.get_object("chk_remove").get_active()
-            )
-        if not checked:
-            self.builder.get_object("chk_remove_data2").set_sensitive(checked)
-        else:
-            self.builder.get_object("chk_remove_data2").set_sensitive(
                 self.builder.get_object("chk_remove").get_active()
             )
 
@@ -300,14 +293,9 @@ class Gtk3UI(Gtk3PluginBase):
 
         config = {
             'max_seeds': self.builder.get_object('spn_seeds').get_value_as_int(),
-            'seedtime_limit': self.builder.get_object('spn_seeds2').get_value(),
-            'seedtime_pause': self.builder.get_object('spn_seeds3').get_value(),
             'filter': c.get_model()[c.get_active_iter()][0],
             'count_exempt': self.builder.get_object('chk_count').get_active(),
             'remove_data': self.builder.get_object('chk_remove_data').get_active(),
-            'seed_remove_data': self.builder.get_object('chk_remove_data2').get_active(),
-            'finished_only': self.builder.get_object('chk_remove2').get_active(),
-            'max2min': self.builder.get_object('chk_remove3').get_active(),
             'labelplus': self.builder.get_object('chk_remove4').get_active(),
             'trackers': trackers,
             'labels': labels,
@@ -318,7 +306,6 @@ class Gtk3UI(Gtk3PluginBase):
             'min2': self.builder.get_object("spn_min1").get_value(),
             'hdd_space': self.builder.get_object("spn_min2").get_value(),
             'remove': self.builder.get_object('chk_remove').get_active(),
-            'pause_torrents': self.builder.get_object('chk_pause').get_active(),
             'enabled': self.builder.get_object('chk_enabled').get_active(),
             'tracker_rules': tracker_rules,
             'label_rules': label_rules,
@@ -339,18 +326,12 @@ class Gtk3UI(Gtk3PluginBase):
 
     def cb_get_config(self, config):
         self.builder.get_object('spn_seeds').set_value(config['max_seeds'])
-        self.builder.get_object('spn_seeds2').set_value(config['seedtime_limit'])
-        self.builder.get_object('spn_seeds3').set_value(config['seedtime_pause'])
         self.builder.get_object('spn_min').set_value(config['min'])
         self.builder.get_object('spn_min1').set_value(config['min2'])
         self.builder.get_object('spn_min2').set_value(config['hdd_space'])
         self.builder.get_object('chk_count').set_active(config['count_exempt'])
         self.builder.get_object('chk_remove_data').set_active(config['remove_data'])
-        self.builder.get_object('chk_remove_data2').set_active(config['seed_remove_data'])
-        self.builder.get_object('chk_remove2').set_active(config['finished_only'])
-        self.builder.get_object('chk_remove3').set_active(config['max2min'])
         self.builder.get_object('chk_remove4').set_active(config['labelplus'])
-        self.builder.get_object('chk_pause').set_active(config['pause_torrents'])
         self.builder.get_object('spn_interval').set_value(config['interval'])
         self.builder.get_object('chk_remove').set_active(config['remove'])
         self.builder.get_object('chk_enabled').set_active(config['enabled'])
