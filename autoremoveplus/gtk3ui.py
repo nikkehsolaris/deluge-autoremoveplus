@@ -39,21 +39,17 @@ from __future__ import unicode_literals
 #    statement from all source files in the program, then also delete it here.
 #
 
-#import gtk
-from gi.repository import Gtk
-
 import logging
-log = logging.getLogger(__name__)
+from gi.repository import Gtk
 from deluge.ui.client import client
-#from deluge.plugins.pluginbase import GtkPluginBase
 from deluge.plugins.pluginbase import Gtk3PluginBase
 import deluge.component as component
-# import deluge.common
 
 from autoremoveplus.common import get_resource
 
+log = logging.getLogger(__name__)
 
-#class GtkUI(GtkPluginBase):
+
 class Gtk3UI(Gtk3PluginBase):
 
     def enable(self):
@@ -151,8 +147,9 @@ class Gtk3UI(Gtk3PluginBase):
             self.on_click_chk_rule_2
         )
 
-        def on_menu_show(menu, xxx_todo_changeme):
-            (menu_item, toggled) = xxx_todo_changeme
+        def on_menu_show(menu, menu_item_toggled):
+            (menu_item, toggled) = menu_item_toggled
+
             def set_ignored(ignored):
                 # set_active will raise the 'toggled'/'activated' signals
                 # so block it to not reset the value
@@ -280,7 +277,7 @@ class Gtk3UI(Gtk3PluginBase):
         for row in self._view_trackers.get_model():
             if row[0] == "Tracker":
                 trackers.append(row[1])
-            else:
+            else:  # row[0] == "Label"
                 labels.append(row[1])
 
         tracker_rules = {}
@@ -298,7 +295,7 @@ class Gtk3UI(Gtk3PluginBase):
             # Insert rule in correct list tracker/label
             if row[0] == "Tracker":
                 tracker_rules.setdefault(row[1], []).append(rule)
-            else:
+            else:  # row[0] == "Label"
                 label_rules.setdefault(row[1], []).append(rule)
 
         config = {
@@ -364,6 +361,8 @@ class Gtk3UI(Gtk3PluginBase):
         self.disable_rule(config['rule_2_enabled'], 2)
 
 
+        # TODO: tracker & label rules should be in same array to preserve ordering!
+        # has implications on logic in core.py
         self.lstore_rules.clear()
         tracker_rules = config['tracker_rules']
         for tracker in tracker_rules:
@@ -372,6 +371,7 @@ class Gtk3UI(Gtk3PluginBase):
                     if row[0] == rule[1]:
                         rule_text = row[1]
 
+                #                          Type       Name   Operator Remove rule  Minimum
                 self.lstore_rules.append(['Tracker', tracker, rule[0], rule_text, rule[2]])
 
         label_rules = config['label_rules']
@@ -381,6 +381,7 @@ class Gtk3UI(Gtk3PluginBase):
                     if row[0] == rule[1]:
                         rule_text = row[1]
 
+                #                          Type   Name   Operator Remove rule  Minimum
                 self.lstore_rules.append(['Label', label, rule[0], rule_text, rule[2]])
 
         self.lstore.clear()

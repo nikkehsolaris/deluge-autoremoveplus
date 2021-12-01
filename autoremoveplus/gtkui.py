@@ -202,6 +202,7 @@ class GtkUI(GtkPluginBase):
         self.glade.get_widget("vbox2").set_sensitive(checked)
         self.glade.get_widget("chk_count").set_sensitive(checked)
         self.glade.get_widget("chk_remove").set_sensitive(checked)
+        self.glade.get_widget("chk_remove4").set_sensitive(checked)
         if not checked:
             self.glade.get_widget("chk_remove_data").set_sensitive(checked)
         else:
@@ -287,6 +288,7 @@ class GtkUI(GtkPluginBase):
             'filter': c.get_model()[c.get_active_iter()][0],
             'count_exempt': self.glade.get_widget('chk_count').get_active(),
             'remove_data': self.glade.get_widget('chk_remove_data').get_active(),
+            'labelplus': self.glade.get_widget('chk_remove4').get_active(),
             'trackers': trackers,
             'labels': labels,
             'min': self.glade.get_widget("spn_min").get_value(),
@@ -321,6 +323,7 @@ class GtkUI(GtkPluginBase):
         self.glade.get_widget('spn_min2').set_value(config['hdd_space'])
         self.glade.get_widget('chk_count').set_active(config['count_exempt'])
         self.glade.get_widget('chk_remove_data').set_active(config['remove_data'])
+        self.glade.get_widget('chk_remove4').set_active(config['labelplus'])
         self.glade.get_widget('spn_interval').set_value(config['interval'])
         self.glade.get_widget('chk_remove').set_active(config['remove'])
         self.glade.get_widget('chk_enabled').set_active(config['enabled'])
