@@ -197,4 +197,7 @@ See also
 
 - https://github.com/jerrymakesjelly/autoremove-torrents
 - springjools fork thread is think [this one](https://forum.deluge-torrent.org/viewtopic.php?f=9&t=47243&p=233391&hilit=springjools+fork#p233391)
+- [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889) contains
+  Execute plugin that emits 4th param - LabelPlus label - to scripts
+- for deluge2 LabelPlus plugin, guess we need to grab mhertz' [hack](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889)?
 

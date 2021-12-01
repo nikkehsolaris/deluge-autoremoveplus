@@ -59,6 +59,7 @@ DEFAULT_PREFS = {
     'filter2': 'func_added',
     'count_exempt': False,
     'remove_data': False,
+    'labelplus': False,
     'trackers': [],
     'labels': [],
     'min': 0.0,
@@ -79,18 +80,46 @@ DEFAULT_PREFS = {
 }
 
 
-def _get_ratio((i, t)):
-    return t.get_ratio()
+def _get_ratio(i_t):
+    return i_t[1].get_ratio()
 
 
-def _age_in_days((i, t)):
+def _time_last_transfer(i_t):
+    (i, t) = i_t
+    try:
+        # time since last transfer (upload/download) in hours
+        time_since_last_transfer = round(t.get_status(['time_since_transfer'], update=True)['time_since_transfer'] / 3600.0, 4)
+    except Exception as e:
+        log.error("Unable to get torrent property:{}".format(e))
+        return False
+
+    return time_since_last_transfer
+
+
+def _age_in_days(i_t):
     now = time.time()
-    #added = t.get_status(['time_added'])['time_added']  # this used in deluge v2 version
-    added = t.time_added  # TODO likley need to change for Deluge v2
+    added = i_t[1].get_status(['time_added'])['time_added']
     log.debug("_age_in_days(): Now = {}, added = {}".format(now, added))
     age_in_days = round((now - added) / 86400.0, 4)
     log.debug("_age_in_days(): Returning age: [{} days]".format(age_in_days))
     return age_in_days
+
+
+def _time_seen_complete(i_t):
+    (i, t) = i_t
+    now = time.time()
+    try:
+        seen_complete = t.get_status(['last_seen_complete'], update=True)['last_seen_complete']
+    except Exception as e:
+        log.error("Unable to get torrent property:{}".format(e))
+        return False
+
+    if not seen_complete: return False
+
+    log.debug("Seen complete on: {}, now = {}".format(seen_complete, now))
+    time_last_seen_complete = round((now - seen_complete) / 3600.0, 4) # time in hours
+    log.debug("Returning time since seen complete: {}".format(time_last_seen_complete))
+    return time_last_seen_complete
 
 
 def _get_free_space_quota():
@@ -108,30 +137,29 @@ def _get_free_space_quota():
     return free  # free quota, in GB
 
 
-def _get_seed_time((i, t)):
-    st = round(t.get_status(['seeding_time'])['seeding_time'] / 3600.0, 4)
+def _get_seed_time(i_t):
+    st = round(i_t[1].get_status(['seeding_time'], update=True)['seeding_time'] / 3600.0, 4)
     log.debug("AutoRemovePlus._get_seed_time(): %s hours", st)
     return st
-
-
-# def _date_added((i, t)):
-    # return (time.time() - t.time_added) / 86400.0
 
 
 # Add key label also to get_remove_rules():141
 filter_funcs = {
     'func_ratio': _get_ratio,
-    #'func_added': lambda (i, t): round((time.time() - t.time_added) / 86400.0, 4),
+    #'func_added': lambda i_t: round((time.time() - i_t[1].get_status(['time_added'])['time_added']) / 86400.0, 4),
     'func_added': _age_in_days,
     'func_seed_time': _get_seed_time,
-    'func_seeders': lambda (i, t): t.get_status(['total_seeds'])['total_seeds']
+    'func_seeders': lambda i_t: i_t[1].get_status(['total_seeds'], update=True)['total_seeds'],
+    'func_availability': lambda i_t: i_t[1].get_status(['distributed_copies'], update=True)['distributed_copies'],
+    'func_time_since_transfer': _time_last_transfer,
+    'func_time_seen_complete': _time_seen_complete
 }
 
 
 sel_funcs = {
-    'and': lambda (a, b): a and b,
-    'or': lambda (a, b): a or b,
-    'xor': lambda (a, b): (a and not b) or (not a and b)
+    'and': lambda a_b: a_b[0] and a_b[1],
+    'or': lambda a_b: a_b[0] or a_b[1],
+    'xor': lambda a_b: (a_b[0] and not a_b[1]) or (not a_b[0] and a_b[1])
 }
 
 
@@ -176,7 +204,7 @@ class Core(CorePluginBase):
     @export
     def set_config(self, config):
         """Sets the config dictionary"""
-        for key in config.keys():
+        for key in list(config.keys()):
             self.config[key] = config[key]
         self.config.save()
         if self.looping_call.running:
@@ -194,7 +222,10 @@ class Core(CorePluginBase):
             'func_ratio': 'Ratio',
             'func_added': 'Age in days',
             'func_seed_time': 'Seed Time (h)',
-            'func_seeders': 'Seeders'
+            'func_seeders': 'Seeders',
+            'func_availability': 'Availability',
+            'func_time_since_transfer': 'Time since transfer (h)',
+            'func_time_seen_complete': 'Time since seen complete (h)'
         }
 
     @export
@@ -287,7 +318,7 @@ class Core(CorePluginBase):
 
     def remove_torrent(self, tid, torrent, remove_data):
         # extra logging for debugging premature torrent removal issues: {
-        # seed_time = torrent.get_status(['seeding_time'])['seeding_time']
+        # seed_time = torrent.get_status(['seeding_time'], update=True)['seeding_time']
         # seed_time_h = _get_seed_time((tid, torrent))
         # log.error("remove_torrent(): pre-announce seed_time: [%s], h: [%s]", seed_time, seed_time_h)
         # }
@@ -308,14 +339,14 @@ class Core(CorePluginBase):
                     "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; removing regardless...", force_announce, tid)
 
         try:
-            seed_time = torrent.get_status(['seeding_time'])['seeding_time']
+            seed_time = torrent.get_status(['seeding_time'], update=True)['seeding_time']
             seed_time_h = _get_seed_time((tid, torrent))
-            total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
-            total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
-            age_sec = time.time() - torrent.time_added  # TODO likley need to change for Deluge v2, ie unsure if t.time_added property is still accessible like that
+            total_time_uploaded = torrent.get_status(['total_uploaded'], update=True)['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
+            total_time_downloaded = torrent.get_status(['all_time_download'], update=True)['all_time_download']
+            age_sec = time.time() - torrent.get_status(['time_added'])['time_added']
             # note these 2 total_time_* are in bytes, not time values:
-            total_time_uploaded = torrent.get_status(['total_uploaded'])['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
-            total_time_downloaded = torrent.get_status(['all_time_download'])['all_time_download']
+            total_time_uploaded = torrent.get_status(['total_uploaded'], update=True)['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
+            total_time_downloaded = torrent.get_status(['all_time_download'], update=True)['all_time_download']
 
             log.error("remove_torrent(): removing torrent [%s]... remove_data = %s, seed_time: [%s], h: [%s], ratio: %s, age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
                       tid, remove_data, seed_time, seed_time_h, torrent.get_ratio(), age_sec, total_time_uploaded, total_time_downloaded)
@@ -338,30 +369,35 @@ class Core(CorePluginBase):
         else:
             return True
 
+    def get_label(self, id):
+        if self.config['labelplus']:
+            return component.get("CorePlugin.LabelPlus").get_torrent_label_name(id)
+        else:
+            return component.get("CorePlugin.Label")._status_get_label(id)
+
     def get_torrent_rules(self, id, torrent, tracker_rules, label_rules):
 
         total_rules = []
 
-        try:
-            for t in torrent.trackers:
-                for name, rules in tracker_rules.iteritems():
-                    log.debug("get_torrent_rules(): processing name = {}, rules = {}, url = {}, find = {} ".format(name, rules, t['url'], t['url'].find(name.lower())))
-                    if (t['url'].find(name.lower()) != -1):
-                        for rule in rules:
-                            total_rules.append(rule)
-        except Exception as e:
-            log.warning("get_torrent_rules(): Exception with getting tracker rules for [{}]: {}".format(id, e))
-            return total_rules
+        if tracker_rules:
+            try:
+                for t in torrent.trackers:
+                    for name, rules in tracker_rules.items():
+                        log.debug("get_torrent_rules(): processing name = {}, rules = {}, url = {}, find = {} ".format(name, rules, t['url'], t['url'].find(name.lower())))
+                        if (t['url'].find(name.lower()) != -1):
+                            for rule in rules:
+                                total_rules.append(rule)
+            except Exception as e:
+                log.warning("get_torrent_rules(): Exception with getting tracker rules for [{}]: {}".format(id, e))
+                return total_rules
 
         if label_rules:
             try:
                 # get label string
-                label_str = component.get(
-                    "CorePlugin.LabelPlus"
-                ).get_torrent_label_name(id)
+                label_str = self.get_label(id)
 
                 # if torrent has labels check them
-                labels = [label_str] if len(label_str) > 0 else []
+                labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
 
                 for label in labels:
                     if label in label_rules:
@@ -384,6 +420,7 @@ class Core(CorePluginBase):
         max_seeds = int(self.config['max_seeds'])
         count_exempt = self.config['count_exempt']
         remove_data = self.config['remove_data']
+        labelplus = self.config['labelplus']
         exemp_trackers = self.config['trackers']
         exemp_labels = self.config['labels']
         min_val = float(self.config['min'])
@@ -392,17 +429,18 @@ class Core(CorePluginBase):
         tracker_rules = self.config['tracker_rules']
         rule_1_chk = self.config['rule_1_enabled']
         rule_2_chk = self.config['rule_2_enabled']
-        labels_enabled = False
+        labels_enabled = False  # default to false
 
-        if 'LabelPlus' in component.get(
-            "CorePluginManager"
-        ).get_enabled_plugins():
+        enabled_plugins = component.get("CorePluginManager").get_enabled_plugins()
+        if ((labelplus and 'LabelPlus' in enabled_plugins) or
+                (not labelplus and 'Label' in enabled_plugins)):
             labels_enabled = True
-            label_rules = self.config['label_rules']
+            # label_rules = self.config['label_rules']
+            label_rules = {k.lower(): v for k, v in self.config['label_rules'].items()}  # TODO from mherz' tote94 fix; why is lower-keyed dict needed?
         else:
-            log.warning("WARNING! LabelPlus plugin not active")
+            log.warning("WARNING! Label nor LabelPlus plugins not active")
             log.warning("No labels will be checked for exemptions!")
-            label_rules = []
+            label_rules = {}
 
         # Negative max means unlimited seeds are allowed, so don't do anything
         if max_seeds < 0:
@@ -428,6 +466,7 @@ class Core(CorePluginBase):
             # likely because the end of this function is way more convoluted/feature-packed than in this - delugev1 - ver?
             try:
                 finished = t.is_finished
+                # finished = t.get_status(['is_finished'], update=True)['is_finished']  # TODO use this or attribute?
             except Exception as e:
                 log.warning("periodic_scan(): Cannot obtain torrent 'is_finished' attribute: {}".format(e))
                 continue
@@ -455,12 +494,10 @@ class Core(CorePluginBase):
             if labels_enabled:
                 try:
                     # get label string
-                    label_str = component.get(
-                        "CorePlugin.LabelPlus"
-                    ).get_torrent_label_name(i)
+                    label_str = self.get_label(i)
 
                     # if torrent has labels check them
-                    labels = [label_str] if len(label_str) > 0 else []
+                    labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
 
                     for label, ex_label in (
                         (l, ex_l) for l in labels for ex_l in exemp_labels
