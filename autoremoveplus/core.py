@@ -370,10 +370,18 @@ class Core(CorePluginBase):
             return True
 
     def get_label(self, id):
-        if self.config['labelplus']:
-            return component.get("CorePlugin.LabelPlus").get_torrent_label_name(id)
-        else:
-            return component.get("CorePlugin.Label")._status_get_label(id)
+        lbl = ''
+
+        try:
+            if self.config['labelplus']:
+                lbl = component.get("CorePlugin.LabelPlus").get_torrent_label_name(id)
+            else:
+                lbl = component.get("CorePlugin.Label")._status_get_label(id)
+        except Exception as e:
+            log.warning("get_label(): problem obtaining torrent {} label: {}".format(id, e))
+            lbl = ''
+
+        return lbl if type(lbl) is str else ''
 
     def get_torrent_rules(self, id, torrent, tracker_rules, label_rules):
 
@@ -392,19 +400,16 @@ class Core(CorePluginBase):
                 return total_rules
 
         if label_rules:
-            try:
-                # get label string
-                label_str = self.get_label(id)
+            # get label string
+            label_str = self.get_label(id)
 
-                # if torrent has labels check them
-                labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
+            # if torrent has labels check them
+            labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
 
-                for label in labels:
-                    if label in label_rules:
-                        for rule in label_rules[label]:
-                            total_rules.append(rule)
-            except Exception as e:
-                log.warning("get_torrent_rules(): Cannot obtain torrent label for [{}]: {}".format(id, e))
+            for label in labels:
+                if label in label_rules:
+                    for rule in label_rules[label]:
+                        total_rules.append(rule)
 
         log.debug("get_torrent_rules(): returning rules for [{}]: {}".format(id, total_rules))
         return total_rules
@@ -490,23 +495,20 @@ class Core(CorePluginBase):
                     log.debug("periodic_scan(): Found exempted tracker: [%s]" % (ex_tracker))
                     ex_torrent = True
 
-            # check if labels in exempted label list if Label plugin is enabled
+            # check if labels in exempted label list if Label(Plus) plugin is enabled
             if labels_enabled:
-                try:
-                    # get label string
-                    label_str = self.get_label(i)
+                # get label string
+                label_str = self.get_label(i)
 
-                    # if torrent has labels check them
-                    labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
+                # if torrent has labels check them
+                labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
 
-                    for label, ex_label in (
-                        (l, ex_l) for l in labels for ex_l in exemp_labels
-                    ):
-                        if(label.find(ex_label.lower()) != -1):
-                            log.debug("periodic_scan(): Found exempted label: [%s]" % (ex_label))
-                            ex_torrent = True
-                except Exception as e:
-                    log.warning("periodic_scan(): problem obtaining torrent label: {}".format(e))
+                for label, ex_label in (
+                    (l, ex_l) for l in labels for ex_l in exemp_labels
+                ):
+                    if (label.find(ex_label.lower()) != -1):
+                        log.debug("periodic_scan(): Found exempted label: [%s]" % (ex_label))
+                        ex_torrent = True
 
             # if torrent tracker or label in exemption list, or torrent ignored
             # insert in the ignored torrents list
