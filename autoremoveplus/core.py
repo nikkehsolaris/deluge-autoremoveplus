@@ -139,7 +139,7 @@ def _get_free_space_quota():
 
 def _get_seed_time(i_t):
     st = round(i_t[1].get_status(['seeding_time'], update=True)['seeding_time'] / 3600.0, 4)
-    log.debug("AutoRemovePlus._get_seed_time(): %s hours", st)
+    log.debug("_get_seed_time(): %s hours", st)
     return st
 
 
@@ -238,7 +238,7 @@ class Core(CorePluginBase):
     @export
     def set_ignore(self, torrent_ids, ignore=True):
         log.debug(
-            "AutoRemovePlus: Setting torrents %s to ignore=%s"
+            "Setting torrents %s to ignore=%s"
             % (torrent_ids, ignore)
         )
 
@@ -281,7 +281,7 @@ class Core(CorePluginBase):
             log.debug("pause_torrent(): successfully paused torrent: [%s]", torrent.torrent_id)
         except Exception as e:
             log.warning(
-                    "AutoRemovePlus: Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
+                    "Problems pausing torrent: [%s]: %s", torrent.torrent_id, e
             )
 
     # note: great hint on libtorrent force_announce inner-workings is at https://forum.deluge-torrent.org/viewtopic.php?p=230210#p230210
@@ -297,22 +297,22 @@ class Core(CorePluginBase):
                 try:
                     # if t.force_reannounce(): return True  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     t.handle.force_reannounce(announce_seconds, announce_trkr_idx, announce_flags)  # note libtorrent's force_reannounce() returntype is void
-                    log.debug("AutoRemovePlus.reannounce(): forced reannounce OK for torrent [%s]", tid)
+                    log.debug("reannounce(): forced reannounce OK for torrent [%s]", tid)
                     return True
                 except Exception as e:
                     log.warning(
-                            "AutoRemovePlus.reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e
+                            "reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e
                     )
             else:
                 if t.force_reannounce():
-                    log.debug("AutoRemovePlus.reannounce(): non-forced reannounce OK for torrent [%s]", tid)
+                    log.debug("reannounce(): non-forced reannounce OK for torrent [%s]", tid)
                     return True
                 else:
                     log.warning(
-                        "AutoRemovePlus.reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
+                        "reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
             time.sleep(5)  # TODO: make this configureable?
 
-        log.error("AutoRemovePlus.reannounce(): Problems reannouncing for torrent: [%s]; giving up", tid)
+        log.error("reannounce(): Problems reannouncing for torrent: [%s]; giving up", tid)
         return False
 
 
@@ -332,11 +332,11 @@ class Core(CorePluginBase):
         if not self.reannounce(tid, torrent, force_announce):
             if self.config['skip_removal_on_reannounce_failure']:
                 log.warning(
-                    "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
+                    "remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
                 return False
             else:
                 log.warning(
-                    "AutoRemovePlus.remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; removing regardless...", force_announce, tid)
+                    "remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; removing regardless...", force_announce, tid)
 
         try:
             seed_time = torrent.get_status(['seeding_time'], update=True)['seeding_time']
@@ -356,15 +356,15 @@ class Core(CorePluginBase):
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception as e:
             log.warning(
-                    "remove_torrent(): AutoRemovePlus: Problems removing torrent [%s]: %s", tid, e
+                    "remove_torrent(): Problems removing torrent [%s]: %s", tid, e
             )
         try:
             del self.torrent_states.config[tid]
         except KeyError:
-            log.warning("remove_torrent(): AutoRemovePlus: no saved state for torrent {}".format(tid))
+            log.warning("remove_torrent(): no saved state for torrent {}".format(tid))
             return True
         except Exception as e:
-            log.warning("remove_torrent(): AutoRemovePlus: Error deleting state for torrent {}: {}".format(tid, e))
+            log.warning("remove_torrent(): Error deleting state for torrent {}: {}".format(tid, e))
             return False
         else:
             return True
@@ -411,10 +411,10 @@ class Core(CorePluginBase):
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
     def periodic_scan(self, *args, **kwargs):
-        log.debug("AutoRemovePlus: beginning periodic_scan() exec")
+        log.debug("starting periodic_scan() exec...")
 
         if not self.config['enabled']:
-            log.debug("AutoRemovePlus: plugin not enabled, skipping periodic_scan()")
+            log.debug("plugin not enabled, skipping periodic_scan()")
             return
 
         max_seeds = int(self.config['max_seeds'])
@@ -438,7 +438,7 @@ class Core(CorePluginBase):
             # label_rules = self.config['label_rules']
             label_rules = {k.lower(): v for k, v in self.config['label_rules'].items()}  # TODO from mherz' tote94 fix; why is lower-keyed dict needed?
         else:
-            log.warning("WARNING! Label nor LabelPlus plugins not active")
+            log.warning("WARNING! Label and/or LabelPlus plugin(s) not active")
             log.warning("No labels will be checked for exemptions!")
             label_rules = {}
 
@@ -555,7 +555,7 @@ class Core(CorePluginBase):
                 break  # break the loop, we have enough space
 
             log.debug(
-                "periodic_scan(): AutoRemovePlus: starting remove-torrent rule checking for [%s], %s"
+                "periodic_scan(): starting remove-torrent rule checking for [%s], %s"
                 % (i, t.get_status(['name'])['name'])
             )
 
