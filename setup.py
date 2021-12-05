@@ -81,10 +81,10 @@ setup(
 
 # rename generated.egg to exclude the py version from filename:
 list_of_eggs = glob.glob('./dist/*.egg')
-newest_egg = max(list_of_eggs, key=os.path.getmtime)
-#newest_egg  = os.path.join('dist', os.listdir('dist')[0])
+if list_of_eggs:
+    newest_egg = max(list_of_eggs, key=os.path.getmtime)
 
-os.rename(
-    newest_egg,
-    os.path.join('dist', __plugin_name__ + '-v' + __version__ + '.egg')
-)
+    os.rename(
+        newest_egg,
+        os.path.join('dist', __plugin_name__ + '-v' + __version__ + '.egg')
+    )
