@@ -369,7 +369,7 @@ class Core(CorePluginBase):
         else:
             return True
 
-    def get_label(self, id):
+    def get_labels(self, id):
         lbl = ''
 
         try:
@@ -378,10 +378,13 @@ class Core(CorePluginBase):
             else:
                 lbl = component.get("CorePlugin.Label")._status_get_label(id)
         except Exception as e:
-            log.warning("get_label(): problem obtaining torrent {} label: {}".format(id, e))
+            log.warning("get_labels(): problem obtaining torrent {} labels: {}".format(id, e))
             lbl = ''
 
-        return lbl if type(lbl) is str else ''
+        if type(lbl) is str and lbl:
+            return [lbl]
+        else:
+            return []  # TODO: mherz' tote94 fix sets default to ["none"] as opposed to empty arr - why, do we want that?  to be able to create rules for 'none' label?
 
     def get_torrent_rules(self, id, torrent, tracker_rules, label_rules):
 
@@ -400,11 +403,8 @@ class Core(CorePluginBase):
                 return total_rules
 
         if label_rules:
-            # get label string
-            label_str = self.get_label(id)
-
             # if torrent has labels check them
-            labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
+            labels = self.get_labels(id)
 
             for label in labels:
                 if label in label_rules:
@@ -484,38 +484,37 @@ class Core(CorePluginBase):
             except KeyError as e:
                 ignored = False
 
-            ex_torrent = False
             trackers = t.trackers
 
             # check if trackers in exempted tracker list
-            for tracker, ex_tracker in (
-                (t, ex_t) for t in trackers for ex_t in exemp_trackers
-            ):
-                if (tracker['url'].find(ex_tracker.lower()) != -1):
-                    log.debug("periodic_scan(): Found exempted tracker: [%s]" % (ex_tracker))
-                    ex_torrent = True
+            if exemp_trackers and not ignored:
+                for tracker, ex_tracker in (
+                    (t, ex_t) for t in trackers for ex_t in exemp_trackers
+                ):
+                    if (tracker['url'].find(ex_tracker.lower()) != -1):
+                        log.debug("periodic_scan(): Found exempted tracker: [%s]" % (ex_tracker))
+                        ignored = True
+                        break
 
             # check if labels in exempted label list if Label(Plus) plugin is enabled
-            if labels_enabled:
-                # get label string
-                label_str = self.get_label(i)
-
+            if exemp_labels and labels_enabled and not ignored:
                 # if torrent has labels check them
-                labels = [label_str] if len(label_str) > 0 else []  # TODO: mherz' tote94 fix sets default to ["none"] - why, do we want that?
+                labels = self.get_labels(i)
 
                 for label, ex_label in (
                     (l, ex_l) for l in labels for ex_l in exemp_labels
                 ):
                     if (label.find(ex_label.lower()) != -1):
                         log.debug("periodic_scan(): Found exempted label: [%s]" % (ex_label))
-                        ex_torrent = True
+                        ignored = True
+                        break
 
             # if torrent tracker or label in exemption list, or torrent ignored
             # insert in the ignored torrents list
-            (ignored_torrents if (ignored or ex_torrent) else torrents).append((i, t))  # (id, torrent) tuple
+            (ignored_torrents if ignored else torrents).append((i, t))  # (id, torrent) tuple
 
         log.debug("periodic_scan(): Number of finished torrents: {0}".format(len(torrents)))
-        log.debug("periodic_scan(): Number of ignored torrents: {0}".format(len(ignored_torrents)))
+        log.debug("periodic_scan(): Number of ignored/exempt torrents: {0}".format(len(ignored_torrents)))
 
         # now that we have trimmed active torrents
         # check again to make sure we still need to proceed
