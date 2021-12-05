@@ -14,18 +14,6 @@ For Deluge v1 support, see [deluge-1 branch](https://github.com/laur89/deluge-au
 
 This is a GtkUI and WebUI plugin.
 
-Delete this block after deluge2-conversion is finished: {
-  !! When converting to Deluge2, see these mhertz' versions:
-  - [his tote94 fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234008#p234008)
-  - [his springjools fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234007#p234007)
-  !!
-  + some other stuff to remember for deluge2-conversion:
-  - iteritems vs items
-  - tuple as args to funcs
-  - logging
-  - config.keys() vs list(config.keys())
-}
-
 Features
 --------
 - Select how many torrents are allowed at the same time.
