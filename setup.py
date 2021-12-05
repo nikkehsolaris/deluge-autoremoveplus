@@ -86,5 +86,5 @@ if list_of_eggs:
 
     os.rename(
         newest_egg,
-        os.path.join('dist', __plugin_name__ + '-v' + __version__ + '.egg')
+        os.path.join('dist', __plugin_name__ + '-' + __version__ + '.egg')
     )
