@@ -46,7 +46,7 @@ from deluge.core.rpcserver import export
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall, deferLater
-import os
+# import os
 import subprocess
 
 import time

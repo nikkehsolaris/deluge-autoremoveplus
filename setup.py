@@ -46,7 +46,7 @@ import glob
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"
 __version__ = "0.6.3"
-__url__ = "http://github.com/laur89/deluge-autoremoveplus"
+__url__ = "https://github.com/laur89/deluge-autoremoveplus"
 __license__ = "GPLv3"
 __description__ = "Torrent auto-removal plugin for Deluge removing torrents according to defined rules"
 __long_description__ = """"""
