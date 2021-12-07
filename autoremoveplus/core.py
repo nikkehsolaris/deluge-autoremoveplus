@@ -46,9 +46,8 @@ from deluge.core.rpcserver import export
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall, deferLater
-# import os
+import os
 import subprocess
-
 import time
 
 log = logging.getLogger(__name__)
@@ -124,8 +123,8 @@ def _time_seen_complete(i_t):
 
 def _get_free_space_quota():
     q = '/usr/bin/quota'
-    # if not os.path.isfile(q):
-        # return default_method(path)
+    if not os.path.isfile(q):
+        raise Exception('[{}] not found'.format(q))
 
     quota_proc = subprocess.Popen([q, '--no-wrap', '--hide-device'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     q_out, q_err = quota_proc.communicate()
