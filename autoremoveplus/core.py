@@ -65,6 +65,7 @@ DEFAULT_PREFS = {
     'min2': 0.0,
     'hdd_space': -1.0,
     'use_quota_for_free_space': False,
+    'quota_executable': '/usr/bin/quota',
     'interval': 0.5,  # hours
     'sel_func': 'and',
     'force_reannounce_before_remove': False,
@@ -121,12 +122,11 @@ def _time_seen_complete(i_t):
     return time_last_seen_complete
 
 
-def _get_free_space_quota():
-    q = '/usr/bin/quota'
-    if not os.path.isfile(q):
-        raise Exception('[{}] not found'.format(q))
+def _get_free_space_quota(quota_exe_path):
+    if not os.path.isfile(quota_exe_path):
+        raise Exception('[{}] not found'.format(quota_exe_path))
 
-    quota_proc = subprocess.Popen([q, '--no-wrap', '--hide-device'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    quota_proc = subprocess.Popen([quota_exe_path, '--no-wrap', '--hide-device'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     q_out, q_err = quota_proc.communicate()
     if quota_proc.returncode != 0 or len(q_err) > 0:
         raise Exception('quota exited w/ {}'.format(quota_proc.returncode))
@@ -258,7 +258,7 @@ class Core(CorePluginBase):
         resolve_common_way = True
         if self.config['use_quota_for_free_space']:
             try:
-                real_free_space = _get_free_space_quota()
+                real_free_space = _get_free_space_quota(self.config['quota_executable'])
                 resolve_common_way = False
             except Exception as e:
                 log.warning("check_min_space(): _get_free_space_quota() threw up: %s", e)
