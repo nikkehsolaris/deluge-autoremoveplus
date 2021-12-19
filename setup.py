@@ -45,6 +45,7 @@ import glob
 
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"
+__author_email__ = "layr@hot.ee"
 __version__ = "0.6.3"
 __url__ = "https://github.com/laur89/deluge-autoremoveplus"
 __license__ = "GPLv3"
@@ -57,6 +58,7 @@ setup(
     version=__version__,
     description=__description__,
     author=__author__,
+    author_email=__author_email__,
     url=__url__,
     license=__license__,
     long_description=__long_description__ if __long_description__ else __description__,
