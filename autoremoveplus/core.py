@@ -105,7 +105,7 @@ def _age_in_days(i_t):
     return age_in_days
 
 
-def _time_seen_complete(i_t):
+def _time_since_seen_complete(i_t):
     (i, t) = i_t
     now = time.time()
     try:
@@ -114,10 +114,10 @@ def _time_seen_complete(i_t):
         log.error("Unable to get torrent property:{}".format(e))
         return False
 
-    if not seen_complete: return False
+    if not seen_complete: return False  # TODO: is this ok? default value think is 0, which would then cause us to return False
 
     log.debug("Seen complete on: {}, now = {}".format(seen_complete, now))
-    time_last_seen_complete = round((now - seen_complete) / 3600.0, 4) # time in hours
+    time_last_seen_complete = round((now - seen_complete) / 3600.0, 4)  # time in hours
     log.debug("Returning time since seen complete: {}".format(time_last_seen_complete))
     return time_last_seen_complete
 
@@ -131,7 +131,7 @@ def _get_free_space_quota(quota_exe_path):
     if quota_proc.returncode != 0 or len(q_err) > 0:
         raise Exception('quota exited w/ {}'.format(quota_proc.returncode))
 
-    q_out = q_out.split('\n')[2].split()  # take 3rd line and split it up
+    q_out = q_out.splitlines()[2].split()  # take 3rd line and split it up
     free = (int(q_out[2]) - int(q_out[0])) / 976563  # hard_limit - used; note we convert KiB to GB
     return free  # free quota, in GB
 
@@ -142,16 +142,17 @@ def _get_seed_time(i_t):
     return st
 
 
-# Add key label also to get_remove_rules():141
+# Add key label also to get_remove_rules():
 filter_funcs = {
     'func_ratio': _get_ratio,
     #'func_added': lambda i_t: round((time.time() - i_t[1].get_status(['time_added'])['time_added']) / 86400.0, 4),
     'func_added': _age_in_days,
     'func_seed_time': _get_seed_time,
     'func_seeders': lambda i_t: i_t[1].get_status(['total_seeds'], update=True)['total_seeds'],
-    'func_availability': lambda i_t: i_t[1].get_status(['distributed_copies'], update=True)['distributed_copies'],
+    'func_availability': lambda i_t: i_t[1].get_status(['distributed_copies'], update=True)['distributed_copies'],  # above 1, at least 1 peer has a full copy; think this only has meaning when state='Downloading'; when Seeding, it's always 0! see https://forum.deluge-torrent.org/viewtopic.php?p=233084#p233084
     'func_time_since_transfer': _time_last_transfer,
-    'func_time_seen_complete': _time_seen_complete
+    'func_time_seen_complete': _time_since_seen_complete,
+    'func_state': lambda i_t: i_t[1].get_status(['state'], update=True)['state']  # [Downloading, Paused, Seeding, Error, Moving, Queued, Checking, Allocating]
 }
 
 
@@ -224,7 +225,8 @@ class Core(CorePluginBase):
             'func_seeders': 'Seeders',
             'func_availability': 'Availability',
             'func_time_since_transfer': 'Time since transfer (h)',
-            'func_time_seen_complete': 'Time since seen complete (h)'
+            'func_time_seen_complete': 'Time since seen complete (h)',
+            'func_state': 'Torrent state'
         }
 
     @export
