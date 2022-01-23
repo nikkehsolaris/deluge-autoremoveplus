@@ -152,8 +152,11 @@ filter_funcs = {
     'func_availability': lambda i_t: i_t[1].get_status(['distributed_copies'], update=True)['distributed_copies'],  # above 1, at least 1 peer has a full copy; think this only has meaning when state='Downloading'; when Seeding, it's always 0! see https://forum.deluge-torrent.org/viewtopic.php?p=233084#p233084
     'func_time_since_transfer': _time_last_transfer,
     'func_time_seen_complete': _time_since_seen_complete,
-    'func_state': lambda i_t: i_t[1].get_status(['state'], update=True)['state']  # [Downloading, Paused, Seeding, Error, Moving, Queued, Checking, Allocating]
+    'func_state': lambda i_t: i_t[1].get_status(['state'], update=True)['state'].lower(),  # [downloading, paused, seeding, error, moving, queued, checking, allocating] (note all lower case!)
+    'func_progress': lambda i_t: i_t[1].get_status(['progress'], update=True)['progress']  # float, 0-100; note it also reports 100 if state = Error; see ~ https://git.deluge-torrent.org/deluge/tree/deluge/core/torrent.py#n972
 }
+# other potentially useful statuses:
+# - total_done: (taken  directly from libtorrent); total # of bytes of the files(s) that we have; unsure if or how the value changes when torrent state changes from Downloading to {Seeding,Moving...}
 
 
 sel_funcs = {
@@ -226,7 +229,8 @@ class Core(CorePluginBase):
             'func_availability': 'Availability',
             'func_time_since_transfer': 'Time since transfer (h)',
             'func_time_seen_complete': 'Time since seen complete (h)',
-            'func_state': 'Torrent state'
+            'func_state': 'Torrent state',
+            'func_progress': 'Torrent progress (0-100)'
         }
 
     @export
