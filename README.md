@@ -169,6 +169,34 @@ avg_upload_speed = torrent['total_uploaded'] / torrent['seeding_time'] if torren
   torrmanager.get_status() can accept `update=True` param not to return cached results.
   this makes no sense for static fields such as name or size, but might be needed for
   `seed_time`, `ratio`...; apparently one of the forks of plugin has removed the caching.
+- add rules/support to handle torrents such as
+
+```
+Name: torrent-name.mkv
+ID: bcbcc09416b8756384f9d72b9dd3cd0762279527
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 4 (15) Availability: 0.08 Seed Rank: -
+Size: 45.0 M/532.6 M Downloaded: 44.7 M Uploaded: 0 B Share Ratio: 0.00
+ETA: - Seeding: - Active: 16h 20m
+Last Transfer: 16h 17m Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 8.45% [#####-------------------------------------------------------]
+Download Folder: /home/myuser/files/
+
+Name: torrent-name-2
+ID: aba61c7f8068c5b5a6414k39cec41d04477f7a4a
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 0 (7) Availability: 0.00 Seed Rank: -
+Size: 0 B/445.1 M Downloaded: 0 B Uploaded: 0 B Share Ratio: -1.00
+ETA: - Seeding: - Active: 16h 21m
+Last Transfer: ∞ Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 0.00% [------------------------------------------------------------]
+Download Folder: /home/myuser/files/incomplete
+```
+note the `Complete Seen` & `Availability` values.
 
 
 Workarounds
