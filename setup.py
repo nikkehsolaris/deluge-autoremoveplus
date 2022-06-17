@@ -43,10 +43,12 @@ from setuptools import setup
 import os
 import glob
 
+# note the version is managed by zest.releaser:
+version = "0.6.3"
+
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"
 __author_email__ = "layr@hot.ee"
-__version__ = "0.6.3"
 __url__ = "https://github.com/laur89/deluge-autoremoveplus"
 __license__ = "GPLv3"
 __description__ = "Torrent auto-removal plugin for Deluge removing torrents according to defined rules"
@@ -55,7 +57,7 @@ __pkg_data__ = {__plugin_name__.lower(): ["template/*", "data/*"]}
 
 setup(
     name=__plugin_name__,
-    version=__version__,
+    version=version,
     description=__description__,
     author=__author__,
     author_email=__author_email__,
@@ -88,5 +90,5 @@ if list_of_eggs:
 
     os.rename(
         newest_egg,
-        os.path.join('dist', __plugin_name__ + '-' + __version__ + '.egg')
+        os.path.join('dist', __plugin_name__ + '-' + version + '.egg')
     )

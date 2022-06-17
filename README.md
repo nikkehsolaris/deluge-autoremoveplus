@@ -6,8 +6,8 @@ you can use to automatically remove torrents. It's
 based on AutoRemove 0.1 by Jamie Lennox.
 
 Other forks from v1 that support Deluge v2:
-- https://github.com/springjools/deluge-autoremoveplus  -note this one has working gtk3 ui (actually not sure)
-- https://github.com/tote94/deluge-autoremoveplus  -think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
+- https://github.com/springjools/deluge-autoremoveplus - note this one has working gtk3 ui (actually not sure)
+- https://github.com/tote94/deluge-autoremoveplus - think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
 it's _not_ springjools that has the working GTKui prefs page;
 
 For Deluge v1 support, see [deluge-1 branch](https://github.com/laur89/deluge-autoremoveplus/tree/deluge-1)
