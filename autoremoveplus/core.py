@@ -90,7 +90,7 @@ def _time_last_transfer(i_t):
         # time since last transfer (upload/download) in hours
         time_since_last_transfer = round(t.get_status(['time_since_transfer'], update=True)['time_since_transfer'] / 3600.0, 4)
     except Exception as e:
-        log.error("Unable to get torrent property:{}".format(e))
+        log.error("Unable to get torrent property: {}".format(e))
         return False
 
     return time_since_last_transfer
@@ -111,7 +111,7 @@ def _time_since_seen_complete(i_t):
     try:
         seen_complete = t.get_status(['last_seen_complete'], update=True)['last_seen_complete']
     except Exception as e:
-        log.error("Unable to get torrent property:{}".format(e))
+        log.error("Unable to get torrent property: {}".format(e))
         return False
 
     if not seen_complete: return False  # TODO: is this ok? default value think is 0, which would then cause us to return False
@@ -305,16 +305,13 @@ class Core(CorePluginBase):
                     log.debug("reannounce(): forced reannounce OK for torrent [%s]", tid)
                     return True
                 except Exception as e:
-                    log.warning(
-                            "reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e
-                    )
+                    log.warning("reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e)
             else:
                 if t.force_reannounce():
                     log.debug("reannounce(): non-forced reannounce OK for torrent [%s]", tid)
                     return True
                 else:
-                    log.warning(
-                        "reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
+                    log.warning("reannounce(): non-forced reannouncing failed for torrent: [%s]", tid)
             time.sleep(5)  # TODO: make this configureable?
 
         log.error("reannounce(): Problems reannouncing for torrent: [%s]; giving up", tid)
@@ -353,7 +350,7 @@ class Core(CorePluginBase):
             total_time_uploaded = torrent.get_status(['total_uploaded'], update=True)['total_uploaded']  # in deluge's internal status, it's under status.all_time_upload
             total_time_downloaded = torrent.get_status(['all_time_download'], update=True)['all_time_download']
 
-            log.error("remove_torrent(): removing torrent [%s]... remove_data = %s, seed_time: [%s], h: [%s], ratio: %s, age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
+            log.debug("remove_torrent(): removing torrent [%s]... remove_data = %s, seed_time: [%s], h: [%s], ratio: %s, age_sec: [%s], total_time_up: [%s], total_time_down: [%s]",
                       tid, remove_data, seed_time, seed_time_h, torrent.get_ratio(), age_sec, total_time_uploaded, total_time_downloaded)
 
             self.torrentmanager.remove(tid, remove_data=remove_data)
@@ -587,7 +584,7 @@ class Core(CorePluginBase):
 
                 first_spec_rule = specific_rules[0]
                 remove_cond = filter_funcs.get(first_spec_rule[1])((i, t)) >= float(first_spec_rule[2])
-                log.error("1. spec rule %s: gate [%s]. fun: [%s], val: %s; remove_cond: %s",
+                log.debug("1. spec rule %s: gate [%s]. fun: [%s], val: %s; remove_cond: %s",
                           i, first_spec_rule[0], first_spec_rule[1], float(first_spec_rule[2]), remove_cond)
 
                 for rule_seq, rule in enumerate(specific_rules[1:], start=2):
@@ -598,7 +595,7 @@ class Core(CorePluginBase):
                         check_filter,
                         remove_cond
                     ))
-                    log.error("%s. spec rule: gate [%s]. fun: [%s], val: %s; rule result: %s, aggregate remove_cond: %s",
+                    log.debug("%s. spec rule: gate [%s]. fun: [%s], val: %s; rule result: %s, aggregate remove_cond: %s",
                               rule_seq, rule[0], rule[1], float(rule[2]), check_filter, remove_cond)
             else:  # process general/global rules
                 filter1_res = filter_funcs.get(self.config['filter'], _get_ratio)((i, t))
@@ -609,8 +606,8 @@ class Core(CorePluginBase):
                 # Get result of second condition test
                 filter_2 = filter2_res >= min_val2
 
-                log.error("[{}] filter1 enabled: [{}], filter2 enabled: [{}]".format(i, rule_1_chk, rule_2_chk))
-                log.error("filter1: {} >= {} = {}; filter2: {} >= {} = {}".format(filter1_res, min_val, filter_1, filter2_res, min_val2, filter_2))
+                log.debug("[{}] filter1 enabled: [{}], filter2 enabled: [{}]".format(i, rule_1_chk, rule_2_chk))
+                log.debug("filter1: {} >= {} = {}; filter2: {} >= {} = {}".format(filter1_res, min_val, filter_1, filter2_res, min_val2, filter_2))
 
                 if rule_1_chk and rule_2_chk:
                     logic_gate = self.config['sel_func']
