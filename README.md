@@ -6,25 +6,13 @@ you can use to automatically remove torrents. It's
 based on AutoRemove 0.1 by Jamie Lennox.
 
 Other forks from v1 that support Deluge v2:
-- https://github.com/springjools/deluge-autoremoveplus  -note this one has working gtk3 ui (actually not sure)
-- https://github.com/tote94/deluge-autoremoveplus  -think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
+- https://github.com/springjools/deluge-autoremoveplus - note this one has working gtk3 ui (actually not sure)
+- https://github.com/tote94/deluge-autoremoveplus - think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
 it's _not_ springjools that has the working GTKui prefs page;
 
 For Deluge v1 support, see [deluge-1 branch](https://github.com/laur89/deluge-autoremoveplus/tree/deluge-1)
 
 This is a GtkUI and WebUI plugin.
-
-Delete this block after deluge2-conversion is finished: {
-  !! When converting to Deluge2, see these mhertz' versions:
-  - [his tote94 fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234008#p234008)
-  - [his springjools fixes](https://forum.deluge-torrent.org/viewtopic.php?p=234007#p234007)
-  !!
-  + some other stuff to remember for deluge2-conversion:
-  - iteritems vs items
-  - tuple as args to funcs
-  - logging
-  - config.keys() vs list(config.keys())
-}
 
 Features
 --------
@@ -181,6 +169,34 @@ avg_upload_speed = torrent['total_uploaded'] / torrent['seeding_time'] if torren
   torrmanager.get_status() can accept `update=True` param not to return cached results.
   this makes no sense for static fields such as name or size, but might be needed for
   `seed_time`, `ratio`...; apparently one of the forks of plugin has removed the caching.
+- add rules/support to handle torrents such as
+
+```
+Name: torrent-name.mkv
+ID: bcbcc09416b8756384f9d72b9dd3cd0762279527
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 4 (15) Availability: 0.08 Seed Rank: -
+Size: 45.0 M/532.6 M Downloaded: 44.7 M Uploaded: 0 B Share Ratio: 0.00
+ETA: - Seeding: - Active: 16h 20m
+Last Transfer: 16h 17m Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 8.45% [#####-------------------------------------------------------]
+Download Folder: /home/myuser/files/
+
+Name: torrent-name-2
+ID: aba61c7f8068c5b5a6414k39cec41d04477f7a4a
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 0 (7) Availability: 0.00 Seed Rank: -
+Size: 0 B/445.1 M Downloaded: 0 B Uploaded: 0 B Share Ratio: -1.00
+ETA: - Seeding: - Active: 16h 21m
+Last Transfer: ∞ Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 0.00% [------------------------------------------------------------]
+Download Folder: /home/myuser/files/incomplete
+```
+note the `Complete Seen` & `Availability` values.
 
 
 Workarounds
@@ -197,4 +213,7 @@ See also
 
 - https://github.com/jerrymakesjelly/autoremove-torrents
 - springjools fork thread is think [this one](https://forum.deluge-torrent.org/viewtopic.php?f=9&t=47243&p=233391&hilit=springjools+fork#p233391)
+- [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889) contains
+  Execute plugin that emits 4th param - LabelPlus label - to scripts
+- for deluge2 LabelPlus plugin, guess we need to grab mhertz' [hack](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889)?
 
