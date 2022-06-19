@@ -40,11 +40,16 @@
 #
 
 from setuptools import setup
+import os
+import glob
+
+# note the version is managed by zest.releaser:
+version = "0.6.3"
 
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"
-__version__ = "0.6.3"
-__url__ = "http://github.com/laur89/deluge-autoremoveplus"
+__author_email__ = "layr@hot.ee"
+__url__ = "https://github.com/laur89/deluge-autoremoveplus"
 __license__ = "GPLv3"
 __description__ = "Torrent auto-removal plugin for Deluge removing torrents according to defined rules"
 __long_description__ = """"""
@@ -52,22 +57,38 @@ __pkg_data__ = {__plugin_name__.lower(): ["template/*", "data/*"]}
 
 setup(
     name=__plugin_name__,
-    version=__version__,
+    version=version,
     description=__description__,
     author=__author__,
+    author_email=__author_email__,
     url=__url__,
     license=__license__,
     long_description=__long_description__ if __long_description__ else __description__,
 
     packages=[__plugin_name__.lower()],
     package_data = __pkg_data__,
+    python_requires='>=3.7',
 
     entry_points="""
     [deluge.plugin.core]
     %s = %s:CorePlugin
     [deluge.plugin.gtkui]
     %s = %s:GtkUIPlugin
+    [deluge.plugin.gtk3ui]
+    %s = %s:Gtk3UIPlugin
     [deluge.plugin.web]
     %s = %s:WebUIPlugin
-    """ % ((__plugin_name__, __plugin_name__.lower())*3)
+    """ % ((__plugin_name__, __plugin_name__.lower())*4)
 )
+
+# original setup-generated filename: AutoRemovePlus-0.6.3-py3.9.egg
+
+# rename generated.egg to exclude the py version from filename:
+list_of_eggs = glob.glob('./dist/*.egg')
+if list_of_eggs:
+    newest_egg = max(list_of_eggs, key=os.path.getmtime)
+
+    os.rename(
+        newest_egg,
+        os.path.join('dist', __plugin_name__ + '-' + version + '.egg')
+    )

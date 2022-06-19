@@ -1,11 +1,16 @@
 AutoRemovePlus
 ==============
 
-AutoRemovePlus is a plugin for [Deluge v1.x](http://deluge-torrent.org) that
+AutoRemovePlus is a plugin for [Deluge v2.x](http://deluge-torrent.org) that
 you can use to automatically remove torrents. It's
 based on AutoRemove 0.1 by Jamie Lennox.
 
-For Deluge v2 support, see [master branch](https://github.com/laur89/deluge-autoremoveplus/tree/master)
+Other forks from v1 that support Deluge v2:
+- https://github.com/springjools/deluge-autoremoveplus - note this one has working gtk3 ui (actually not sure)
+- https://github.com/tote94/deluge-autoremoveplus - think this is only webui (actually not sure); [this](https://github.com/springjools/deluge-autoremoveplus/issues/36#issuecomment-830783002) refers
+it's _not_ springjools that has the working GTKui prefs page;
+
+For Deluge v1 support, see [deluge-1 branch](https://github.com/laur89/deluge-autoremoveplus/tree/deluge-1)
 
 This is a GtkUI and WebUI plugin.
 
@@ -71,16 +76,16 @@ The rest of the options are pretty self explanatory
 
 Development
 -----------
-- use python 2.7, as this version of plugin doesn't support Deluge 2 that runs on py3
+- use python 3
 - virutal env manager `virtualenv`
 - run:
 
 ```
-+ Install python 2
-- py2 is likely unsupported on your distro, so first install pyenv:
++ Install python 3.7  (or whatever your seedbox uses for python3; any v3 should be ok though)
+- first install pyenv:
   $ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
-- install latest py2:  $ pyenv install 2.7.18
-- cd to project root and change to version:  $ pyenv local 2.7.18
+- install py3:  $ pyenv install 3.9.7
+- cd to project root and change to version:  $ pyenv local 3.9.7
   - this will create .python-version file at the root
 - verify your py version: $ python --version
 
@@ -93,13 +98,12 @@ A) manually... (not recommended):
 - to switch projects or just leave the venv, run:  $ deactivate
 B) ...or using pyenv (recommended):
 - this step might still be needed, unsure:  install virtualenv:  $ pip install virtualenv
-- create venv:  $ pyenv virtualenv venv27  (again, 'venv27' is just the name/location)
+- create venv:  $ pyenv virtualenv venv39  (again, 'venv39' is just the name/location of the env)
+- switch to said env:  $ pyenv local venv39  (modifies project's .python-version file)
 - if you have [eval "$(pyenv virtualenv-init -)"] in your .bashrc, then
   env activation/deactivation should be automatic; to do it manually, then
     pyenv activate <name>
     pyenv deactivate
-
-+ building project: see below
 ```
 
 Building
@@ -111,11 +115,14 @@ Run:
 python setup.py bdist_egg
 ```
 
-The resulting `AutoRemovePlus-x-py2.x.egg` file can be found in the `/dist` directory.
+The resulting `AutoRemovePlus-vX.Y.Z.egg` file can be found in the `/dist` directory.
+Note the .egg doesn't contain python version in the filename - our modified
+`setup.py` has logic that renames the generated .egg.
 
-Roadmap
--------
-- similar to `TotalTraffic` plugin, start tracking upload bandwidth _per
+Roadmap/TODO
+------------
+
+- similar to `TotalTraffic` plugin, start tracking upload bandwidth, but _per
   torrent_. Idea is to enable rule to only remove torrents that have uploaded
   less than X amount in past Y time period. So removal rule should be something like
 
@@ -136,11 +143,77 @@ _minimum_ ratio & seed time rules, and let the active torrents upload however
 long they can.
 Additional problem will be incorporating it with our UI though.
 
+- as previously, but perhaps also allow measuring avg speed:
+```
+avg_upload_speed = torrent['total_uploaded'] / torrent['active_time'] if torrent['active_time'] > 0 else 0
+  OR don't count the upload speed for the time we were downloading ourselves. unsure why we shouldn't tho...:
+avg_upload_speed = torrent['total_uploaded'] / torrent['seeding_time'] if torrent['seeding_time'] > 0 else 0
+```
+
+- need to add possibility to count seeding time from the moment torrent hits 100%;
+  eg TL writes this [in their wiki](þtp://wiki.torrentleech.org/doku.php/hnr):
+  > Be aware that seeding time only counts for fully completed torrents (downloaded 100%).
+
+  We might be able to use torrent attributes `last_seen_complete` and/or `finished_time`;
+  note springjool's core.py has `_time_seen_complete()` that might be what we need.
+  Thinking about it more, think finished_time attr fits our use-case better. Or maybe
+  `seeding_time`? see libtorrent explanation on fields [here](https://www.libtorrent.org/reference-Add_Torrent.html)
+  TODO: this all is likely already covered by the existing func_seed_time we're
+  even using in production!
+- items should be removed from our state file via Execute plugin on torrent removal
+  event; otherwise torrents removed outside of this script would not get removed
+  from the state tracker. maybe there's some deluge's removed event we could tap
+  into? OR: include some cleanup logic in the plugin itself to remove state info
+  for torrents that are no longer around, ie they had to be removed by some other means.
+- according to [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233390#p233390),
+  torrmanager.get_status() can accept `update=True` param not to return cached results.
+  this makes no sense for static fields such as name or size, but might be needed for
+  `seed_time`, `ratio`...; apparently one of the forks of plugin has removed the caching.
+- add rules/support to handle torrents such as
+
+```
+Name: torrent-name.mkv
+ID: bcbcc09416b8756384f9d72b9dd3cd0762279527
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 4 (15) Availability: 0.08 Seed Rank: -
+Size: 45.0 M/532.6 M Downloaded: 44.7 M Uploaded: 0 B Share Ratio: 0.00
+ETA: - Seeding: - Active: 16h 20m
+Last Transfer: 16h 17m Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 8.45% [#####-------------------------------------------------------]
+Download Folder: /home/myuser/files/
+
+Name: torrent-name-2
+ID: aba61c7f8068c5b5a6414k39cec41d04477f7a4a
+State: Downloading Down Speed: 0.0 K/s Up Speed: 0.0 K/s
+Seeds: 0 (0) Peers: 0 (7) Availability: 0.00 Seed Rank: -
+Size: 0 B/445.1 M Downloaded: 0 B Uploaded: 0 B Share Ratio: -1.00
+ETA: - Seeding: - Active: 16h 21m
+Last Transfer: ∞ Complete Seen: Never
+Tracker: tracker.org
+Tracker status: Announce OK
+Progress: 0.00% [------------------------------------------------------------]
+Download Folder: /home/myuser/files/incomplete
+```
+note the `Complete Seen` & `Availability` values.
+
+
 Workarounds
 -----------
 
 If after building the egg file, the plugin does not load in Deluge:
 
-- Delete the `AutoRemovePlus-x-py2.x.egg` in `/deluge/plugins` directory.
+- Delete the `AutoRemovePlus-vX.Y.Z.egg` in `/deluge/plugins` directory.
 - Delete the `AutoRemovePlus.conf` files.
 - Restart Deluge.
+
+See also
+--------
+
+- https://github.com/jerrymakesjelly/autoremove-torrents
+- springjools fork thread is think [this one](https://forum.deluge-torrent.org/viewtopic.php?f=9&t=47243&p=233391&hilit=springjools+fork#p233391)
+- [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889) contains
+  Execute plugin that emits 4th param - LabelPlus label - to scripts
+- for deluge2 LabelPlus plugin, guess we need to grab mhertz' [hack](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889)?
+
