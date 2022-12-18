@@ -211,6 +211,7 @@ If after building the egg file, the plugin does not load in Deluge:
 See also
 --------
 
+- https://github.com/l3uddz/tqm - go-based torrent removal program
 - https://github.com/jerrymakesjelly/autoremove-torrents
 - springjools fork thread is think [this one](https://forum.deluge-torrent.org/viewtopic.php?f=9&t=47243&p=233391&hilit=springjools+fork#p233391)
 - [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889) contains
