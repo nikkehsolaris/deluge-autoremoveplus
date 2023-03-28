@@ -46,6 +46,7 @@ from deluge.core.rpcserver import export
 
 from twisted.internet import reactor
 from twisted.internet.task import LoopingCall, deferLater
+from deluge._libtorrent import lt
 import os
 import subprocess
 import time
@@ -294,7 +295,7 @@ class Core(CorePluginBase):
         # note the first two announce_* arg values are the defaults from https://libtorrent.org/reference-Torrent_Handle.html#force_reannounce()
         announce_seconds = 0    # how many seconds from now to issue the tracker announces; default = 0
         announce_trkr_idx = -1  # specifies which tracker to re-announce. If set to -1 (which is the default), all trackers are re-announced.
-        announce_flags = 1  # TODO: announce_flags type changes from libtorrent RC_1_2 so likley/maybe have to change for Deluge 2!:
+        announce_flags = lt.reannounce_flags_t.ignore_min_interval  # announce NOW; as discussed in https://github.com/arvidn/libtorrent/discussions/7334
 
         t_end = time.time() + self.config['reannounce_max_wait_sec']
         while time.time() < t_end:
