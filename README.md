@@ -81,7 +81,7 @@ Development
 - run:
 
 ```
-+ Install python 3.7  (or whatever your seedbox uses for python3; any v3 should be ok though)
++ Install python 3.7  (or whatever your seedbox uses for python3; any py3 version should be ok)
 - first install pyenv:
   $ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 - install py3:  $ pyenv install 3.9.7

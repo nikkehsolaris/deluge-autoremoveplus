@@ -44,14 +44,26 @@ import deluge.component as component
 import deluge.configmanager
 from deluge.core.rpcserver import export
 
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.internet.task import LoopingCall, deferLater
+from twisted.internet.defer import ensureDeferred
 from deluge._libtorrent import lt
+import functools
 import os
 import subprocess
 import time
 
 log = logging.getLogger(__name__)
+
+
+# from https://stackoverflow.com/a/44627140/1803648
+def ensure_deferred(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        result = f(*args, **kwargs)
+        return ensureDeferred(result)
+    return wrapper
+
 
 DEFAULT_PREFS = {
     'max_seeds': 0,
@@ -163,7 +175,7 @@ filter_funcs = {
 sel_funcs = {
     'and': lambda a_b: a_b[0] and a_b[1],
     'or': lambda a_b: a_b[0] or a_b[1],
-    'xor': lambda a_b: (a_b[0] and not a_b[1]) or (not a_b[0] and a_b[1])
+    'xor': lambda a_b: (not a_b[0]) ^ (not a_b[1])
 }
 
 
@@ -301,14 +313,13 @@ class Core(CorePluginBase):
         while time.time() < t_end:
             if force_announce:
                 try:
-                    # if t.force_reannounce(): return True  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     t.handle.force_reannounce(announce_seconds, announce_trkr_idx, announce_flags)  # note libtorrent's force_reannounce() returntype is void
                     log.debug("reannounce(): forced reannounce OK for torrent [%s]", tid)
                     return True
                 except Exception as e:
                     log.warning("reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e)
             else:
-                if t.force_reannounce():
+                if t.force_reannounce():  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     log.debug("reannounce(): non-forced reannounce OK for torrent [%s]", tid)
                     return True
                 else:
@@ -332,7 +343,9 @@ class Core(CorePluginBase):
         # prior to nuking torrent.
         #
         # TODO: maybe reannounce should also be called on torrent completion event, not only prior to removal?
-        if not self.reannounce(tid, torrent, force_announce):
+        if self.reannounce(tid, torrent, force_announce):
+            time.sleep(2)  # not sure if needed, but let's give some time for the tracker
+        else:
             if self.config['skip_removal_on_reannounce_failure']:
                 log.warning(
                     "remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
@@ -358,9 +371,8 @@ class Core(CorePluginBase):
 
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception as e:
-            log.warning(
-                    "remove_torrent(): Problems removing torrent [%s]: %s", tid, e
-            )
+            log.warning("remove_torrent(): Problems removing torrent [%s]: %s", tid, e)
+
         try:
             del self.torrent_states.config[tid]
         except KeyError:
@@ -418,7 +430,8 @@ class Core(CorePluginBase):
         return total_rules
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
-    def periodic_scan(self, *args, **kwargs):
+    @ensure_deferred
+    async def periodic_scan(self, *args, **kwargs):
         log.debug("starting periodic_scan() exec...")
 
         if not self.config['enabled']:
@@ -633,7 +646,8 @@ class Core(CorePluginBase):
                 if not remove:
                     self.pause_torrent(t)
                 else:
-                    if self.remove_torrent(i, t, remove_data):
+                    # note we deferToThread because of time.sleep() downstream
+                    if await threads.deferToThread(lambda: self.remove_torrent(i, t, remove_data)):
                         changed = True
 
         # If a torrent exemption state has been removed save changes
