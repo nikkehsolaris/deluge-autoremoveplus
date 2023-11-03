@@ -471,8 +471,7 @@ class Core(CorePluginBase):
 
         log.debug("Number of torrents: {0}".format(len(torrent_ids)))
 
-        # If there are less torrents present than we allow
-        # then there can be nothing to do
+        # If there are fewer torrents present than allowed, there's nothing to be done:
         if len(torrent_ids) <= max_seeds:
             return
 
@@ -495,11 +494,7 @@ class Core(CorePluginBase):
                 if not finished:
                     continue
 
-            try:
-                ignored = self.torrent_states[i]
-            except KeyError as e:
-                ignored = False
-
+            ignored = self.torrent_states.config.get(i, False)
             trackers = t.trackers
 
             # check if trackers in exempted tracker list
