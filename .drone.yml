@@ -10,6 +10,7 @@ steps:
   commands:
   - git config --global user.email "zest.releaser@example.com"
   - git config --global user.name "Zest Releaser"
+  - git config --global push.autoSetupRemote true
   - pip install zest.releaser
   - fullrelease --no-input
   #- git push origin --tags
