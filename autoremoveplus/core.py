@@ -540,20 +540,15 @@ class Core(CorePluginBase):
                 max_seeds = 0
 
         # Alternate sort by primary and secondary criteria
-        # TODO: why is this sorting done?? we use tuple of (bool, bool) as sorting key??? why???
-        #       think it's so a-la lower-ratio (or whatever else metric) torrents are
-        #       processed, hence removed, sooner?
+        f1 = filter_funcs.get(self.config['filter'], _get_ratio)
+        f2 = filter_funcs.get(self.config['filter2'], _get_ratio)
+        if f1 == f2:
+            sort_f = lambda x: f1(x)
+        else:
+            sort_f = lambda x: (f1(x), f2(x))
+
         torrents.sort(
-            key=lambda x: (
-                filter_funcs.get(
-                    self.config['filter'],
-                    _get_ratio
-                )(x),
-                filter_funcs.get(
-                    self.config['filter2'],
-                    _get_ratio
-                )(x)
-            ),
+            key=sort_f,
             reverse=False
         )
 
