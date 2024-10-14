@@ -274,15 +274,15 @@ class Core(CorePluginBase):
         if min_hdd_space < 0.0:
             return False
 
-        resolve_common_way = True
+        real_free_space = None
         if self.config['use_quota_for_free_space']:
             try:
                 real_free_space = _get_free_space_quota(self.config['quota_executable'])
-                resolve_common_way = False
             except Exception as e:
+                real_free_space = None
                 log.warning("check_min_space(): _get_free_space_quota() threw up: %s", e)
 
-        if resolve_common_way:
+        if real_free_space is None:
             real_free_space = component.get("Core").get_free_space() / 1073741824.0  # bytes -> GB
 
         log.debug("Free Space in GB (real/min.required): %s/%s" % (real_free_space, min_hdd_space))

@@ -6,7 +6,7 @@ name: default
 steps:
 # note zest does everything, including tagging!
 - name: version-tag-changelog
-  image: python:3-bullseye
+  image: python:3-bookworm
   commands:
   - git config --global user.email "zest.releaser@example.com"
   - git config --global user.name "Zest Releaser"
