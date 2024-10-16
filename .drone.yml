@@ -61,6 +61,6 @@ steps:
 trigger:
   ref:
   - refs/heads/master
-  - refs/heads/develop
+  #- refs/heads/develop
   - refs/heads/feature/*
   - refs/tags/*
