@@ -1,4 +1,4 @@
-0.6.4 (unreleased)
+## 0.6.4 (unreleased)
 ------------------
 
 - drone: change version-tag-changelog step image to python:3-bookworm

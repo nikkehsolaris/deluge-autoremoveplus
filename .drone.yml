@@ -39,6 +39,7 @@ steps:
 - name: build
   image: python:3-alpine
   commands:
+  - pip install --no-cache-dir setuptools
   - python setup.py bdist_egg
   when:
     event: tag
