@@ -81,7 +81,7 @@ Development
 - run:
 
 ```
-+ Install python 3.7  (or whatever your seedbox uses for python3; any v3 should be ok though)
++ Install python 3.7  (or whatever your seedbox uses for python3; any py3 version should be ok)
 - first install pyenv:
   $ curl -L https://github.com/pyenv/pyenv-installer/raw/master/bin/pyenv-installer | bash
 - install py3:  $ pyenv install 3.9.7
@@ -109,11 +109,25 @@ B) ...or using pyenv (recommended):
 Building
 --------
 
-Run:
+Either run locally from shell...
 
+```sh
+$ python setup.py bdist_egg
 ```
-python setup.py bdist_egg
+
+...or build using Docker to easily swap out Python versions:
+
+```sh
+$ make build
 ```
+
+By default Python 3.11 is used. If you wish to target a different version specify it as an env var:
+
+```sh
+$ make build PYTHON_VERSION=3.10
+```
+
+Note if you're running an older version of Docker you may need to enable BuildKit manually.
 
 The resulting `AutoRemovePlus-vX.Y.Z.egg` file can be found in the `/dist` directory.
 Note the .egg doesn't contain python version in the filename - our modified
@@ -211,6 +225,7 @@ If after building the egg file, the plugin does not load in Deluge:
 See also
 --------
 
+- https://github.com/l3uddz/tqm - go-based torrent removal program
 - https://github.com/jerrymakesjelly/autoremove-torrents
 - springjools fork thread is think [this one](https://forum.deluge-torrent.org/viewtopic.php?f=9&t=47243&p=233391&hilit=springjools+fork#p233391)
 - [this post](https://forum.deluge-torrent.org/viewtopic.php?p=233889#p233889) contains

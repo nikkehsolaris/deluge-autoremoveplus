@@ -44,13 +44,26 @@ import deluge.component as component
 import deluge.configmanager
 from deluge.core.rpcserver import export
 
-from twisted.internet import reactor
+from twisted.internet import reactor, threads
 from twisted.internet.task import LoopingCall, deferLater
+from twisted.internet.defer import ensureDeferred
+from deluge._libtorrent import lt
+import functools
 import os
 import subprocess
 import time
 
 log = logging.getLogger(__name__)
+
+
+# from https://stackoverflow.com/a/44627140/1803648
+def ensure_deferred(f):
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
+        result = f(*args, **kwargs)
+        return ensureDeferred(result)
+    return wrapper
+
 
 DEFAULT_PREFS = {
     'max_seeds': 0,
@@ -162,7 +175,7 @@ filter_funcs = {
 sel_funcs = {
     'and': lambda a_b: a_b[0] and a_b[1],
     'or': lambda a_b: a_b[0] or a_b[1],
-    'xor': lambda a_b: (a_b[0] and not a_b[1]) or (not a_b[0] and a_b[1])
+    'xor': lambda a_b: (not a_b[0]) ^ (not a_b[1])
 }
 
 
@@ -261,15 +274,15 @@ class Core(CorePluginBase):
         if min_hdd_space < 0.0:
             return False
 
-        resolve_common_way = True
+        real_free_space = None
         if self.config['use_quota_for_free_space']:
             try:
                 real_free_space = _get_free_space_quota(self.config['quota_executable'])
-                resolve_common_way = False
             except Exception as e:
+                real_free_space = None
                 log.warning("check_min_space(): _get_free_space_quota() threw up: %s", e)
 
-        if resolve_common_way:
+        if real_free_space is None:
             real_free_space = component.get("Core").get_free_space() / 1073741824.0  # bytes -> GB
 
         log.debug("Free Space in GB (real/min.required): %s/%s" % (real_free_space, min_hdd_space))
@@ -294,20 +307,19 @@ class Core(CorePluginBase):
         # note the first two announce_* arg values are the defaults from https://libtorrent.org/reference-Torrent_Handle.html#force_reannounce()
         announce_seconds = 0    # how many seconds from now to issue the tracker announces; default = 0
         announce_trkr_idx = -1  # specifies which tracker to re-announce. If set to -1 (which is the default), all trackers are re-announced.
-        announce_flags = 1  # TODO: announce_flags type changes from libtorrent RC_1_2 so likley/maybe have to change for Deluge 2!:
+        announce_flags = lt.reannounce_flags_t.ignore_min_interval  # announce NOW; as discussed in https://github.com/arvidn/libtorrent/discussions/7334
 
         t_end = time.time() + self.config['reannounce_max_wait_sec']
         while time.time() < t_end:
             if force_announce:
                 try:
-                    # if t.force_reannounce(): return True  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     t.handle.force_reannounce(announce_seconds, announce_trkr_idx, announce_flags)  # note libtorrent's force_reannounce() returntype is void
                     log.debug("reannounce(): forced reannounce OK for torrent [%s]", tid)
                     return True
                 except Exception as e:
                     log.warning("reannounce(): Problems calling libtorrent.torr.force_reannounce(): %s", e)
             else:
-                if t.force_reannounce():
+                if t.force_reannounce():  # this one uses Deluge torrent function, as opposed to directly calling libtorrent's
                     log.debug("reannounce(): non-forced reannounce OK for torrent [%s]", tid)
                     return True
                 else:
@@ -331,7 +343,9 @@ class Core(CorePluginBase):
         # prior to nuking torrent.
         #
         # TODO: maybe reannounce should also be called on torrent completion event, not only prior to removal?
-        if not self.reannounce(tid, torrent, force_announce):
+        if self.reannounce(tid, torrent, force_announce):
+            time.sleep(2)  # not sure if needed, but let's give some time for the tracker
+        else:
             if self.config['skip_removal_on_reannounce_failure']:
                 log.warning(
                     "remove_torrent(): reannounce (force = %s) failed for torrent: [%s]; skipping remove", force_announce, tid)
@@ -357,9 +371,8 @@ class Core(CorePluginBase):
 
             log.debug("remove_torrent(): successfully removed torrent: [%s]", tid)
         except Exception as e:
-            log.warning(
-                    "remove_torrent(): Problems removing torrent [%s]: %s", tid, e
-            )
+            log.warning("remove_torrent(): Problems removing torrent [%s]: %s", tid, e)
+
         try:
             del self.torrent_states.config[tid]
         except KeyError:
@@ -417,7 +430,8 @@ class Core(CorePluginBase):
         return total_rules
 
     # we don't use args or kwargs it just allows callbacks to happen cleanly
-    def periodic_scan(self, *args, **kwargs):
+    @ensure_deferred
+    async def periodic_scan(self, *args, **kwargs):
         log.debug("starting periodic_scan() exec...")
 
         if not self.config['enabled']:
@@ -457,8 +471,7 @@ class Core(CorePluginBase):
 
         log.debug("Number of torrents: {0}".format(len(torrent_ids)))
 
-        # If there are less torrents present than we allow
-        # then there can be nothing to do
+        # If there are fewer torrents present than allowed, there's nothing to be done:
         if len(torrent_ids) <= max_seeds:
             return
 
@@ -481,11 +494,7 @@ class Core(CorePluginBase):
                 if not finished:
                     continue
 
-            try:
-                ignored = self.torrent_states[i]
-            except KeyError as e:
-                ignored = False
-
+            ignored = self.torrent_states.config.get(i, False)
             trackers = t.trackers
 
             # check if trackers in exempted tracker list
@@ -531,20 +540,15 @@ class Core(CorePluginBase):
                 max_seeds = 0
 
         # Alternate sort by primary and secondary criteria
-        # TODO: why is this sorting done?? we use tuple of (bool, bool) as sorting key??? why???
-        #       think it's so a-la lower-ratio (or whatever else metric) torrents are
-        #       processed, hence removed, sooner?
+        f1 = filter_funcs.get(self.config['filter'], _get_ratio)
+        f2 = filter_funcs.get(self.config['filter2'], _get_ratio)
+        if f1 == f2:
+            sort_f = lambda x: f1(x)
+        else:
+            sort_f = lambda x: (f1(x), f2(x))
+
         torrents.sort(
-            key=lambda x: (
-                filter_funcs.get(
-                    self.config['filter'],
-                    _get_ratio
-                )(x),
-                filter_funcs.get(
-                    self.config['filter2'],
-                    _get_ratio
-                )(x)
-            ),
+            key=sort_f,
             reverse=False
         )
 
@@ -632,7 +636,8 @@ class Core(CorePluginBase):
                 if not remove:
                     self.pause_torrent(t)
                 else:
-                    if self.remove_torrent(i, t, remove_data):
+                    # note we deferToThread because of time.sleep() downstream
+                    if await threads.deferToThread(lambda: self.remove_torrent(i, t, remove_data)):
                         changed = True
 
         # If a torrent exemption state has been removed save changes

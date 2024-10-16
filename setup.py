@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 #
 # setup.py
 #
@@ -44,7 +46,7 @@ import os
 import glob
 
 # note the version is managed by zest.releaser:
-version = "0.6.3"
+version = "0.6.5.dev0"
 
 __plugin_name__ = "AutoRemovePlus"
 __author__ = "Laur"

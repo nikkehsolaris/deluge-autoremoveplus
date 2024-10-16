@@ -6,11 +6,15 @@ name: default
 steps:
 # note zest does everything, including tagging!
 - name: version-tag-changelog
-  image: python:3-bullseye
+  image: python:3-bookworm
   commands:
-  - git config --global user.email "zest.releaser@example.com"
-  - git config --global user.name "Zest Releaser"
+  #- git config --global user.email "zest.releaser@example.com"
+  #- git config --global user.name "Zest Releaser"
+  #- git remote set-url origin ${DRONE_GIT_SSH_URL}
+  #- git config --global push.autoSetupRemote true
   - pip install zest.releaser
+  # TODO: consider towncrier for changelog updates
+  #- pip install zestreleaser.towncrier
   - fullrelease --no-input
   #- git push origin --tags
   when:
@@ -22,7 +26,9 @@ steps:
   settings:
     ssh_key:
       from_secret: github_ssh_key
-    branch: "${DRONE_BRANCH}"
+    #remote_name: origin
+    #branch: "${DRONE_BRANCH}"
+    #remote: ssh://git@github.com/laur89/deluge-autoremoveplus.git
     remote: "${DRONE_GIT_SSH_URL}"
     force: false
     followtags: true
@@ -33,6 +39,7 @@ steps:
 - name: build
   image: python:3-alpine
   commands:
+  - pip install --no-cache-dir setuptools
   - python setup.py bdist_egg
   when:
     event: tag
