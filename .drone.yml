@@ -12,9 +12,9 @@ steps:
   #- git config --global user.name "Zest Releaser"
   #- git remote set-url origin ${DRONE_GIT_SSH_URL}
   #- git config --global push.autoSetupRemote true
-  - pip install zest.releaser
+  - pip --no-cache-dir install zest.releaser
   # TODO: consider towncrier for changelog updates
-  #- pip install zestreleaser.towncrier
+  #- pip install --no-cache-dir zestreleaser.towncrier
   - fullrelease --no-input
   #- git push origin --tags
   when:
