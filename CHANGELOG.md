@@ -1,4 +1,4 @@
-## 0.6.5 (unreleased)
+## 0.6.5 (2024-11-29)
 
 - add `post_removal_sleep_sec` config item
     
