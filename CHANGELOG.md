@@ -1,7 +1,6 @@
 ## 0.6.6 (unreleased)
 
-
-- Nothing changed yet.
+- fix `post_removal_sleep_sec` logic (syntax err, sry)
 
 
 ## 0.6.5 (2024-11-29)

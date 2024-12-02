@@ -645,7 +645,7 @@ class Core(CorePluginBase):
                     # reported as freed up, which can cause too many torrents to be removed
                     # in the same invocation:
                     if self.config['hdd_space'] > 0.0 and self.config['post_removal_sleep_sec'] > 0.0:
-                        await threads.deferToThread(lambda: time.sleep(self.config['post_removal_sleep_sec'])):
+                        await threads.deferToThread(lambda: time.sleep(self.config['post_removal_sleep_sec']))
 
         # If a torrent exemption state has been removed save changes
         if changed:
