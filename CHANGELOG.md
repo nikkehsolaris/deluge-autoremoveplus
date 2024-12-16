@@ -1,3 +1,9 @@
+## 0.6.8 (unreleased)
+
+
+- Nothing changed yet.
+
+
 ## 0.6.7 (2024-12-16)
 
 - webui: specific remove rules changed to single-clicks
