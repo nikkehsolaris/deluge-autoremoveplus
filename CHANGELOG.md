@@ -1,4 +1,4 @@
-## 0.6.7 (unreleased)
+## 0.6.7 (2024-12-16)
 
 - webui: specific remove rules changed to single-clicks
 
