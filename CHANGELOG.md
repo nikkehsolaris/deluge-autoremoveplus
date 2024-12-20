@@ -1,3 +1,9 @@
+## 0.6.9 (unreleased)
+
+
+- Nothing changed yet.
+
+
 ## 0.6.8 (2024-12-20)
 
 - gtkui: fix focusing new rule column
