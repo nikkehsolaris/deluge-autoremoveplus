@@ -69,6 +69,22 @@ class GtkUI(GtkPluginBase):
             self.on_show_prefs
         )
 
+    # Define valid torrent states
+    valid_torrent_states = [
+        ("seeding", "Seeding"),
+        ("paused", "Paused"),
+        ("queued", "Queued"),
+        ("active", "Active"),
+        ("stopped", "Stopped"),
+    ]
+
+    # Initialize the model for the dropdowns
+    self.rules = gtk.ListStore(str, str)
+
+    # Populate the model with valid torrent states
+    for key, label in valid_torrent_states:
+        self.rules.append((key, label))
+
         # Create and fill remove rule list
         self.rules = gtk.ListStore(str, str)
         client.autoremoveplus.get_remove_rules().addCallback(self.cb_get_rules)
