@@ -69,13 +69,16 @@ class GtkUI(GtkPluginBase):
             self.on_show_prefs
         )
 
-    # Define valid torrent states
+    # Define valid torrent states downloading, paused, seeding, error, moving, queued, checking, allocating
     valid_torrent_states = [
         ("seeding", "Seeding"),
         ("paused", "Paused"),
         ("queued", "Queued"),
-        ("active", "Active"),
-        ("stopped", "Stopped"),
+        ("downloading", "Downloading"),
+        ("error", "Error"),
+        ("moving","Moving"),
+        ("checking","Checking"),
+        ("allocating","Allocating")
     ]
 
     # Initialize the model for the dropdowns
